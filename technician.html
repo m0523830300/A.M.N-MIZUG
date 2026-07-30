@@ -409,9 +409,6 @@
     <div class="detail-row" id="dNotesRow"><b>הערות:</b> <span id="dNotes"></span></div>
     <hr class="sep">
 
-    <label>משויך לטכנאי (העברה)</label>
-    <div class="name-pills" id="assignedPills"></div>
-
     <label for="workDone">מה בוצע</label>
     <textarea id="workDone" placeholder="תאר את הטיפול שבוצע..."></textarea>
 
@@ -490,7 +487,6 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbw0fAfYyK9gfViAaVFs0G1HPNguFjdAU4bDt6HCIs_LuOzKuu8lKIM0mLP48gIfeZ-Kwg/exec";
 // ============================================================
 
-let TECHNICIANS = [];
 let myName = null; // logged-in technician's name
 let allCalls = [];
 let currentFilter = 'open';
@@ -517,8 +513,6 @@ const overlay = document.getElementById('overlay');
 const notifyBanner = document.getElementById('notifyBanner');
 const notifyText = document.getElementById('notifyText');
 const notifyBtn = document.getElementById('notifyBtn');
-const assignedPills = document.getElementById('assignedPills');
-let assignedTechValue = '';
 
 function isConfigured(){ return API_URL && !API_URL.includes('PASTE_YOUR'); }
 if(!isConfigured()){
@@ -529,39 +523,6 @@ function showToast(msg){
   toast.textContent = msg;
   toast.classList.add('show');
   setTimeout(()=>toast.classList.remove('show'), 2400);
-}
-
-// --- Load technician list for the reassign pills -----------------------
-function renderNamePills(){
-  assignedPills.innerHTML = [`<button type="button" class="name-pill" data-name="">לא משויך</button>`]
-    .concat(TECHNICIANS.map(t => `<button type="button" class="name-pill" data-name="${escapeAttr(t)}">${escapeHtml(t)}</button>`))
-    .join('');
-  assignedPills.querySelectorAll('.name-pill').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      assignedTechValue = btn.dataset.name;
-      assignedPills.querySelectorAll('.name-pill').forEach(b=> b.classList.toggle('active', b === btn));
-    });
-  });
-}
-
-async function loadTechnicianOptions(){
-  if(!isConfigured()) return;
-  try{
-    const cached = localStorage.getItem('cachedTechnicians');
-    if(cached){
-      TECHNICIANS = JSON.parse(cached);
-      renderNamePills();
-    }
-  }catch(err){ /* ignore cache errors */ }
-
-  try{
-    const res = await fetch(API_URL + '?action=technicians');
-    TECHNICIANS = await res.json();
-    localStorage.setItem('cachedTechnicians', JSON.stringify(TECHNICIANS));
-  }catch(err){
-    if(!TECHNICIANS.length) TECHNICIANS = [];
-  }
-  renderNamePills();
 }
 
 async function loadPriceList(){
@@ -816,10 +777,6 @@ function openDetail(id){
     notesRow.style.display='none';
   }
 
-  assignedTechValue = normalizeName(c['טכנאי משויך']) || '';
-  assignedPills.querySelectorAll('.name-pill').forEach(b=>{
-    b.classList.toggle('active', normalizeName(b.dataset.name) === assignedTechValue);
-  });
   document.getElementById('workDone').value = c['מה בוצע'] || '';
   document.getElementById('techPrice').value = c['מחיר טכנאי'] || '';
   document.getElementById('customerPrice').value = c['מחיר ללקוח'] || '';
@@ -1115,7 +1072,6 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
     workDone,
     followUpNeeded: followUpVal,
     status: newStatus,
-    assignedTechnician: assignedTechValue,
     techPrice: document.getElementById('techPrice').value,
     techVat: vatVal,
     customerPrice: document.getElementById('customerPrice').value,
@@ -1164,17 +1120,14 @@ document.getElementById('refreshBtn').addEventListener('click', ()=> loadCalls(t
       // בודקים ברקע, בלי לחסום את המסך, שהקוד עדיין תקף (למשל שהטכנאי
       // לא הוסר מרשימת הטכנאים) - ורק אם לא תקף, מוציאים חזרה למסך הכניסה.
       verifySessionInBackground();
-      loadTechnicianOptions();
     }catch(err){
       localStorage.removeItem('techAuth');
       loginScreen.style.display = '';
       appScreen.style.display = 'none';
-      loadTechnicianOptions();
     }
   }else{
     loginScreen.style.display = '';
     appScreen.style.display = 'none';
-    loadTechnicianOptions();
   }
   loadPriceList();
 })();

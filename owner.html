@@ -149,9 +149,17 @@
   }
   .tech-add-row button:hover{background:var(--navy-deep);}
 
+  .tabs{display:flex;gap:8px;margin:18px 20px 0;}
+  .tab{
+    flex:1;text-align:center;padding:9px 0;border-radius:20px;
+    font-size:13px;font-weight:700;cursor:pointer;
+    border:1.5px solid var(--line);color:var(--text-dim);background:#fff;
+  }
+  .tab.active{background:var(--navy);border-color:var(--navy);color:#fff;}
+
   .toolbar{
     display:flex;justify-content:space-between;align-items:center;
-    margin:26px 20px 10px;
+    margin:14px 20px 10px;
   }
   .refresh{
     background:none;border:1.5px solid var(--line);
@@ -414,8 +422,13 @@
     <button type="submit" class="submit" id="submitBtn">שלח קריאה לטכנאי</button>
   </form>
 
+  <div class="section-title"><span class="n">02</span> קריאות שירות</div>
+  <div class="tabs">
+    <div class="tab active" data-filter="open">קריאות פתוחות</div>
+    <div class="tab" data-filter="closed">קריאות סגורות</div>
+  </div>
   <div class="toolbar">
-    <div class="section-title" style="margin:0;"><span class="n">02</span> קריאות פתוחות וסגורות</div>
+    <div></div>
     <button class="refresh" id="refreshBtn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-3-6.7"/><path d="M21 4v6h-6"/></svg>
       רענון
@@ -559,16 +572,27 @@ function statusClass(status){
   return 'status-new';
 }
 
+let allCalls = [];
+let currentFilter = 'open';
+
 async function loadCalls(){
   if(!isConfigured()) return;
   listEl.innerHTML = `<div class="loading">טוען קריאות...</div>`;
   try{
     const res = await fetch(API_URL);
     const data = await res.json();
-    renderList(data.reverse());
+    allCalls = data.reverse();
+    applyFilterAndRender();
   }catch(err){
     listEl.innerHTML = `<div class="empty">שגיאה בטעינת הנתונים. בדוק את החיבור לגיליון.</div>`;
   }
+}
+
+function applyFilterAndRender(){
+  const filtered = currentFilter === 'open'
+    ? allCalls.filter(c => c['סטטוס'] !== 'הושלם')
+    : allCalls.filter(c => c['סטטוס'] === 'הושלם');
+  renderList(filtered);
 }
 
 function getWaitLabel(openDateStr, status){
@@ -583,7 +607,8 @@ function getWaitLabel(openDateStr, status){
 
 function renderList(calls){
   if(!calls.length){
-    listEl.innerHTML = `<div class="empty">אין עדיין קריאות שירות.</div>`;
+    const msg = currentFilter === 'open' ? 'אין קריאות פתוחות כרגע.' : 'אין עדיין קריאות סגורות.';
+    listEl.innerHTML = `<div class="empty">${msg}</div>`;
     return;
   }
   listEl.innerHTML = calls.map(c => {
@@ -739,6 +764,15 @@ document.getElementById('callForm').addEventListener('submit', async (e)=>{
     btn.disabled = false;
     btn.textContent = 'שלח קריאה לטכנאי';
   }
+});
+
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    currentFilter = tab.dataset.filter;
+    applyFilterAndRender();
+  });
 });
 
 document.getElementById('refreshBtn').addEventListener('click', ()=>{ loadTechnicians(); loadCalls(); });
