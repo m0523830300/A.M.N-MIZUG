@@ -220,6 +220,11 @@
   .detail-row{font-size:14px;margin-bottom:8px;line-height:1.6;}
   .detail-row b{color:var(--text-dim);font-weight:600;display:inline-block;min-width:70px;}
   .detail-row a{color:var(--accent);font-weight:600;text-decoration:none;}
+  .whatsapp-link{
+    display:inline-flex;align-items:center;justify-content:center;
+    color:#25D366;vertical-align:middle;margin-right:6px;
+  }
+  .whatsapp-link:hover{opacity:.8;}
   hr.sep{border:none;border-top:1px dashed var(--line);margin:16px 0;}
   label{display:block;font-size:13px;font-weight:600;color:var(--text-dim);margin:12px 0 6px;}
   input[type="number"], input[type="text"], input[type="tel"], select{
@@ -395,7 +400,12 @@
     <h2 id="dName"></h2>
     <div class="sub" id="dIssue"></div>
     <div class="detail-row"><b>כתובת:</b> <a id="dAddress" href="#" target="_blank" rel="noopener"></a></div>
-    <div class="detail-row"><b>טלפון:</b> <a id="dPhone" href="#"></a></div>
+    <div class="detail-row">
+      <b>טלפון:</b> <a id="dPhone" href="#"></a>
+      <a id="dWhatsapp" href="#" target="_blank" rel="noopener" class="whatsapp-link" title="פתח וואטסאפ">
+        <svg viewBox="0 0 32 32" width="20" height="20" fill="currentColor"><path d="M16 3C9 3 3.3 8.7 3.3 15.7c0 2.4.7 4.7 1.9 6.7L3 29l6.8-2.1c1.9 1 4 1.6 6.2 1.6 7 0 12.7-5.7 12.7-12.7C28.7 8.7 23 3 16 3zm0 23.1c-2 0-3.9-.5-5.5-1.5l-.4-.2-4 1.2 1.2-3.9-.3-.4a10.4 10.4 0 01-1.7-5.6C5.3 9.9 10.1 5.1 16 5.1S26.7 9.9 26.7 15.7 21.9 26.1 16 26.1zm5.8-7.8c-.3-.2-1.9-.9-2.2-1s-.5-.2-.7.2-.8 1-.9 1.1-.3.2-.6 0a8.3 8.3 0 01-2.4-1.5 9.2 9.2 0 01-1.7-2.1c-.2-.3 0-.5.1-.6l.4-.5.3-.4a.6.6 0 000-.5c-.1-.2-.7-1.7-1-2.3s-.5-.5-.7-.5h-.6a1.2 1.2 0 00-.8.4A3.5 3.5 0 009.6 13c0 1.4 1 2.8 1.2 3s2 3 4.7 4.3a15.9 15.9 0 001.6.6 3.8 3.8 0 001.7.1c.5-.1 1.6-.6 1.8-1.3s.2-1.2.2-1.3-.2-.2-.4-.3z"/></svg>
+      </a>
+    </div>
     <div class="detail-row" id="dNotesRow"><b>הערות:</b> <span id="dNotes"></span></div>
     <hr class="sep">
 
@@ -764,6 +774,16 @@ function normalizeName(str){
     .trim();
 }
 
+// ממיר מספר טלפון ישראלי (עם/בלי מקפים, עם/בלי 0 בהתחלה) לפורמט
+// בינלאומי (972...) הנדרש עבור קישורי wa.me של וואטסאפ.
+function toWhatsappNumber(phone){
+  let digits = String(phone||'').replace(/\D/g,'');
+  if(!digits) return '';
+  if(digits.startsWith('0')) digits = '972' + digits.slice(1);
+  if(!digits.startsWith('972')) return '';
+  return digits;
+}
+
 function escapeHtml(str){
   const d = document.createElement('div');
   d.textContent = String(str);
@@ -784,6 +804,10 @@ function openDetail(id){
   const phoneEl = document.getElementById('dPhone');
   phoneEl.textContent = c['טלפון']||'';
   phoneEl.href = 'tel:' + (c['טלפון']||'');
+  const waEl = document.getElementById('dWhatsapp');
+  const waNumber = toWhatsappNumber(c['טלפון']||'');
+  waEl.href = waNumber ? `https://wa.me/${waNumber}` : '#';
+  waEl.style.display = waNumber ? '' : 'none';
   const notesRow = document.getElementById('dNotesRow');
   if(c['הערות פתיחה']){
     notesRow.style.display='';
