@@ -407,6 +407,12 @@
       </a>
     </div>
     <div class="detail-row" id="dNotesRow"><b>הערות:</b> <span id="dNotes"></span></div>
+    <div id="ownerPhotoRow" style="display:none; margin-top:10px;">
+      <label style="margin-bottom:6px;">📷 תמונת הכוונה מהבעלים</label>
+      <a id="ownerPhotoLink" href="#" target="_blank" rel="noopener">
+        <img id="ownerPhotoImg" src="" alt="תמונת הכוונה" style="width:100%;border-radius:10px;border:1px solid var(--line);">
+      </a>
+    </div>
     <hr class="sep">
 
     <label for="workDone">מה בוצע (חובה)</label>
@@ -760,6 +766,14 @@ function normalizeName(str){
 
 // ממיר מספר טלפון ישראלי (עם/בלי מקפים, עם/בלי 0 בהתחלה) לפורמט
 // בינלאומי (972...) הנדרש עבור קישורי wa.me של וואטסאפ.
+// ממיר קישור צפייה רגיל של Google Drive (.../file/d/ID/view) לקישור
+// שניתן להטמיע כתמונה בפועל (<img src>) בתוך הדף.
+function driveThumbnailUrl(driveUrl){
+  const match = String(driveUrl||'').match(/\/d\/([a-zA-Z0-9_-]+)/);
+  if(!match) return driveUrl;
+  return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w1000`;
+}
+
 function toWhatsappNumber(phone){
   let digits = String(phone||'').replace(/\D/g,'');
   if(!digits) return '';
@@ -798,6 +812,16 @@ function openDetail(id){
     document.getElementById('dNotes').textContent = c['הערות פתיחה'];
   }else{
     notesRow.style.display='none';
+  }
+
+  const ownerPhotoRow = document.getElementById('ownerPhotoRow');
+  const ownerPhotoUrl = c['תמונת הכוונה מהבעלים'];
+  if(ownerPhotoUrl){
+    ownerPhotoRow.style.display = '';
+    document.getElementById('ownerPhotoLink').href = ownerPhotoUrl;
+    document.getElementById('ownerPhotoImg').src = driveThumbnailUrl(ownerPhotoUrl);
+  }else{
+    ownerPhotoRow.style.display = 'none';
   }
 
   document.getElementById('workDone').value = c['מה בוצע'] || '';

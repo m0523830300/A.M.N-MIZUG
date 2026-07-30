@@ -216,6 +216,43 @@
   .call-meta b{color:var(--text);font-weight:600;}
   .call-meta a{color:var(--navy);font-weight:600;text-decoration:none;}
   .call-meta a:hover{text-decoration:underline;}
+  .edit-row{display:flex;gap:8px;margin-top:10px;}
+  .edit-btn, .photo-btn{
+    flex:1;border:1.5px solid var(--line);background:#fff;color:var(--navy);
+    padding:8px;border-radius:9px;font-family:'Heebo',sans-serif;font-size:12.5px;
+    font-weight:700;cursor:pointer;
+  }
+  .edit-btn:hover, .photo-btn:hover{border-color:var(--navy);}
+  .owner-photo-row{margin-top:8px;}
+  .owner-photo-row a{
+    font-size:12px;font-weight:700;color:var(--navy);text-decoration:none;
+    background:var(--accent-soft);border-radius:20px;padding:5px 12px;
+  }
+
+  .overlay{
+    position:fixed;inset:0;background:rgba(15,37,47,.45);
+    display:none;align-items:flex-end;justify-content:center;z-index:50;
+  }
+  .overlay.show{display:flex;}
+  .edit-sheet{
+    background:#fff;width:100%;max-width:640px;border-radius:18px 18px 0 0;
+    padding:22px 20px 26px;max-height:88vh;overflow-y:auto;
+  }
+  .edit-sheet h2{margin:0 0 16px;font-size:18px;font-weight:800;color:var(--navy);}
+  .edit-sheet label{display:block;font-size:13px;font-weight:600;color:var(--text-dim);margin:12px 0 6px;}
+  .edit-sheet input{
+    width:100%;font-family:'Heebo',sans-serif;font-size:15px;padding:11px 12px;
+    border:1.5px solid var(--line);border-radius:9px;background:#FBFCFD;color:var(--text);
+  }
+  .edit-sheet input:focus{outline:none;border-color:var(--navy);background:#fff;}
+  .edit-actions{display:flex;gap:10px;margin-top:20px;}
+  .edit-actions button{
+    flex:1;border:none;padding:14px;border-radius:10px;font-family:'Heebo',sans-serif;
+    font-size:15px;font-weight:700;cursor:pointer;
+  }
+  #editSaveBtn{background:var(--navy);color:#fff;}
+  #editCancelBtn{background:none;border:1.5px solid var(--line);color:var(--text-dim);}
+
   .danger-row{display:flex;gap:8px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);}
   .cancel-btn, .delete-btn{
     flex:1;border:1.5px solid var(--line);background:#fff;color:var(--text-dim);
@@ -426,6 +463,7 @@
       <button type="button" class="pill active" data-val="תיקון">תיקון</button>
       <button type="button" class="pill" data-val="התקנה">התקנה</button>
     </div>
+    <div class="no-speech-note">תיקון = נשלח לטכנאי כקריאת שירות רגילה. התקנה = רק יוצר/מוצא לקוח ומקצה מספר מסמך - לא נשלח לאף טכנאי.</div>
 
     <label>שיוך לטכנאי</label>
     <div class="tech-pills" id="assignedPills"></div>
@@ -483,6 +521,26 @@
     </div>
   </div>
 </div>
+
+<div class="overlay" id="editOverlay">
+  <div class="edit-sheet">
+    <h2>עריכת פרטי קריאה</h2>
+    <label for="editCustomerName">שם הלקוח</label>
+    <input id="editCustomerName" placeholder="שם הלקוח">
+    <label for="editPhone">טלפון</label>
+    <input id="editPhone" type="tel" placeholder="050-1234567">
+    <label for="editAddress">כתובת</label>
+    <input id="editAddress" placeholder="כתובת">
+    <label for="editIssueType">סוג התקלה</label>
+    <input id="editIssueType" placeholder="סוג התקלה">
+    <div class="edit-actions">
+      <button type="button" id="editCancelBtn">ביטול</button>
+      <button type="button" id="editSaveBtn">שמור שינויים</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="ownerPhotoInput" accept="image/*" style="display:none;">
 
 <div class="toast" id="toast"></div>
 
@@ -701,6 +759,11 @@ function renderList(calls){
           <span class="assign-label">שייך / העבר ל:</span>
           ${assignPills}
         </div>
+        <div class="edit-row">
+          <button type="button" class="edit-btn" data-id="${escapeAttr(id)}">✏️ ערוך פרטים</button>
+          <button type="button" class="photo-btn" data-id="${escapeAttr(id)}">📷 תמונת הכוונה לטכנאי</button>
+        </div>
+        ${c['תמונת הכוונה מהבעלים'] ? `<div class="owner-photo-row"><a href="${escapeAttr(c['תמונת הכוונה מהבעלים'])}" target="_blank" rel="noopener">🖼️ תמונת הכוונה שנשלחה</a></div>` : ''}
         <div class="danger-row">
           ${c['סטטוס'] !== 'הושלם' && c['סטטוס'] !== 'בוטל' ? `<button type="button" class="cancel-btn" data-id="${escapeAttr(id)}">🚫 בטל קריאה</button>` : ''}
           <button type="button" class="delete-btn" data-id="${escapeAttr(id)}">🗑️ מחק לצמיתות</button>
@@ -717,6 +780,15 @@ function renderList(calls){
   });
   listEl.querySelectorAll('.delete-btn').forEach(btn=>{
     btn.addEventListener('click', ()=> deleteCall(btn.dataset.id));
+  });
+  listEl.querySelectorAll('.edit-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=> openEditModal(btn.dataset.id));
+  });
+  listEl.querySelectorAll('.photo-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      photoUploadTargetId = btn.dataset.id;
+      document.getElementById('ownerPhotoInput').click();
+    });
   });
 }
 
@@ -771,6 +843,105 @@ async function deleteCall(id){
     showToast('שגיאה במחיקה, נסה שוב');
   }
 }
+
+// ============================================================
+// עריכת פרטי קריאה קיימת
+// ============================================================
+let editingCallId = null;
+
+function openEditModal(id){
+  const c = allCalls.find(x => String(x['מזהה']) === String(id));
+  if(!c) return;
+  editingCallId = id;
+  document.getElementById('editCustomerName').value = c['שם לקוח'] || '';
+  document.getElementById('editPhone').value = c['טלפון'] || '';
+  document.getElementById('editAddress').value = c['כתובת'] || '';
+  document.getElementById('editIssueType').value = c['סוג תקלה'] || '';
+  document.getElementById('editOverlay').classList.add('show');
+}
+
+document.getElementById('editCancelBtn').addEventListener('click', ()=>{
+  document.getElementById('editOverlay').classList.remove('show');
+});
+document.getElementById('editOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'editOverlay') document.getElementById('editOverlay').classList.remove('show');
+});
+
+document.getElementById('editSaveBtn').addEventListener('click', async ()=>{
+  if(!editingCallId || !isConfigured()) return;
+  const btn = document.getElementById('editSaveBtn');
+  btn.disabled = true;
+  btn.textContent = 'שומר...';
+  try{
+    await fetch(API_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({
+        action:'editCallDetails',
+        id: editingCallId,
+        customerName: document.getElementById('editCustomerName').value,
+        phone: document.getElementById('editPhone').value,
+        address: document.getElementById('editAddress').value,
+        issueType: document.getElementById('editIssueType').value
+      })
+    });
+    showToast('הפרטים עודכנו ✓');
+    document.getElementById('editOverlay').classList.remove('show');
+    loadCalls();
+  }catch(err){
+    showToast('שגיאה בעדכון, נסה שוב');
+  }finally{
+    btn.disabled = false;
+    btn.textContent = 'שמור שינויים';
+  }
+});
+
+// ============================================================
+// העלאת תמונת הכוונה לטכנאי (מהבעלים) - לא נשמרת בקבצי הבעלים, רק מוצגת באפליקציה
+// ============================================================
+let photoUploadTargetId = null;
+
+document.getElementById('ownerPhotoInput').addEventListener('change', async ()=>{
+  const input = document.getElementById('ownerPhotoInput');
+  const file = input.files && input.files[0];
+  input.value = '';
+  if(!file || !photoUploadTargetId || !isConfigured()) return;
+
+  if(file.size > 15 * 1024 * 1024){
+    showToast('הקובץ גדול מדי (מעל 15MB)');
+    return;
+  }
+
+  showToast('מעלה תמונה...');
+  try{
+    const reader = new FileReader();
+    const base64Data = await new Promise((resolve, reject)=>{
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    const res = await fetch(API_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({
+        action:'uploadOwnerPhoto',
+        id: photoUploadTargetId,
+        fileName: file.name,
+        mimeType: file.type || 'image/jpeg',
+        base64Data
+      })
+    });
+    const result = await res.json();
+    if(result.success){
+      showToast('התמונה נשלחה לטכנאי ✓');
+      loadCalls();
+    }else{
+      showToast(result.error || 'שגיאה בהעלאת התמונה');
+    }
+  }catch(err){
+    showToast('שגיאה בהעלאת התמונה, נסה שוב');
+  }
+});
 
 function normalizeName(str){
   return String(str||'')
@@ -841,12 +1012,31 @@ document.getElementById('callForm').addEventListener('submit', async (e)=>{
     workTypeVal = 'תיקון';
     document.querySelectorAll('#workTypePills .pill').forEach(b=> b.classList.toggle('active', b.dataset.val === workTypeVal));
     renderTechUI();
-    if(result.doc && result.doc.success){
-      showToast(`הקריאה נשלחה ✓ | מספר מסמך: ${result.doc.docNumber} (${result.doc.customerFound ? 'לקוח קיים' : 'לקוח חדש נוצר'})`, 7000);
+    if(result.skippedCall){
+      showToast('📋 נקלט - זו התקנה, לא נשלח לטכנאי (רק לקוח + מסמך)');
     }else{
-      showToast('הקריאה נשלחה לטכנאי ✓' + (result.doc && result.doc.error ? ' (שגיאה ביצירת מסמך: ' + result.doc.error + ')' : ''), result.doc && result.doc.error ? 7000 : 2400);
+      showToast('הקריאה נשלחה לטכנאי ✓');
     }
     loadCalls();
+
+    // הקצאת לקוח/מספר מסמך רצה ברקע בלי לעכב את המשתמש - מעדכנים בטוסט נפרד כשמסתיים
+    fetch(API_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({
+        action: 'createCustomerDoc',
+        customerName: payload.customerName,
+        phone: payload.phone,
+        address: payload.address,
+        workType: payload.workType
+      })
+    }).then(r => r.json()).then(doc => {
+      if(doc.success){
+        showToast(`📄 מספר מסמך: ${doc.docNumber} (${doc.customerFound ? 'לקוח קיים' : 'לקוח חדש נוצר'})`, 7000);
+      }else{
+        showToast('⚠️ שגיאה ביצירת מסמך/לקוח: ' + (doc.error || 'לא ידוע'), 7000);
+      }
+    }).catch(()=>{ /* לא מציגים שגיאה מפריעה אם קריאת הרקע נכשלה מסיבה זמנית */ });
   }catch(err){
     showToast('שגיאה בשליחה, נסה שוב');
   }finally{
