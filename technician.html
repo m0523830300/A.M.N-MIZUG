@@ -188,6 +188,14 @@
   .badge.status-followup{background:var(--amber-soft);color:var(--amber);}
   .badge.status-done{background:var(--green-soft);color:var(--green);}
   .call-meta{font-size:13px;color:var(--text-dim);margin-top:4px;line-height:1.6;}
+
+  .wait-badge{
+    display:inline-block;margin-top:8px;font-size:11.5px;font-weight:700;
+    padding:3px 10px;border-radius:20px;
+  }
+  .wait-badge.wait-new{background:#EAF0F2;color:var(--navy);}
+  .wait-badge.wait-soon{background:var(--amber-soft);color:var(--amber);}
+  .wait-badge.wait-urgent{background:#FBE4E1;color:#C0392B;}
   .call-meta b{color:var(--text);font-weight:600;}
 
   .empty, .loading{margin:30px 20px;text-align:center;color:var(--text-dim);font-size:14px;}
@@ -384,7 +392,7 @@
   <div class="sheet">
     <h2 id="dName"></h2>
     <div class="sub" id="dIssue"></div>
-    <div class="detail-row"><b>כתובת:</b> <span id="dAddress"></span></div>
+    <div class="detail-row"><b>כתובת:</b> <a id="dAddress" href="#" target="_blank" rel="noopener"></a></div>
     <div class="detail-row"><b>טלפון:</b> <a id="dPhone" href="#"></a></div>
     <div class="detail-row" id="dNotesRow"><b>הערות:</b> <span id="dNotes"></span></div>
     <hr class="sep">
@@ -700,6 +708,16 @@ function updateDashboard(){
   document.getElementById('cFollowup').textContent = allCalls.filter(c => statusClass(c['סטטוס']) === 'status-followup').length;
 }
 
+function getWaitLabel(openDateStr, status){
+  if(status === 'הושלם') return '';
+  const opened = new Date(openDateStr);
+  if(isNaN(opened.getTime())) return '';
+  const diffDays = Math.floor((Date.now() - opened.getTime()) / 86400000);
+  if(diffDays <= 0) return 'נפתח היום';
+  if(diffDays === 1) return 'ממתין כבר יום';
+  return `ממתין כבר ${diffDays} ימים`;
+}
+
 function render(){
   updateDashboard();
   let calls = allCalls;
@@ -712,6 +730,9 @@ function render(){
   }
   listEl.innerHTML = calls.map(c=>{
     const sc = statusClass(c['סטטוס']);
+    const waitLabel = getWaitLabel(c['תאריך פתיחה'], c['סטטוס']);
+    const waitDays = Math.floor((Date.now() - new Date(c['תאריך פתיחה']).getTime()) / 86400000);
+    const waitClass = waitDays >= 3 ? 'wait-urgent' : (waitDays >= 1 ? 'wait-soon' : 'wait-new');
     return `
       <div class="call ${sc}" data-id="${escapeAttr(c['מזהה'])}">
         <div class="call-top">
@@ -722,6 +743,7 @@ function render(){
           <div><b>כתובת:</b> ${escapeHtml(c['כתובת']||'')}</div>
           <div><b>תקלה:</b> ${escapeHtml(c['סוג תקלה']||'')}</div>
         </div>
+        ${waitLabel ? `<div class="wait-badge ${waitClass}">⏱ ${waitLabel}</div>` : ''}
       </div>`;
   }).join('');
 
@@ -749,7 +771,10 @@ function openDetail(id){
   activeId = id;
   document.getElementById('dName').textContent = c['שם לקוח']||'';
   document.getElementById('dIssue').textContent = c['סוג תקלה']||'';
-  document.getElementById('dAddress').textContent = c['כתובת']||'';
+  const addressEl = document.getElementById('dAddress');
+  const addressVal = c['כתובת']||'';
+  addressEl.textContent = addressVal;
+  addressEl.href = addressVal ? `https://waze.com/ul?q=${encodeURIComponent(addressVal)}&navigate=yes` : '#';
   const phoneEl = document.getElementById('dPhone');
   phoneEl.textContent = c['טלפון']||'';
   phoneEl.href = 'tel:' + (c['טלפון']||'');
