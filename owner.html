@@ -189,6 +189,7 @@
   .call.status-progress::before{background:var(--accent);}
   .call.status-followup::before{background:var(--amber);}
   .call.status-done::before{background:var(--green);}
+  .call.status-cancelled::before{background:#8A9BA3;}
 
   .call-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
   .call-name{font-weight:700;font-size:15px;}
@@ -201,6 +202,7 @@
   .badge.status-progress{background:var(--accent-soft);color:var(--accent);}
   .badge.status-followup{background:var(--amber-soft);color:var(--amber);}
   .badge.status-done{background:var(--green-soft);color:var(--green);}
+  .badge.status-cancelled{background:#EDEFF1;color:#5C6E75;text-decoration:line-through;}
 
   .call-meta{font-size:13px;color:var(--text-dim);margin-top:4px;line-height:1.6;}
 
@@ -214,6 +216,15 @@
   .call-meta b{color:var(--text);font-weight:600;}
   .call-meta a{color:var(--navy);font-weight:600;text-decoration:none;}
   .call-meta a:hover{text-decoration:underline;}
+  .danger-row{display:flex;gap:8px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);}
+  .cancel-btn, .delete-btn{
+    flex:1;border:1.5px solid var(--line);background:#fff;color:var(--text-dim);
+    padding:8px;border-radius:9px;font-family:'Heebo',sans-serif;font-size:12.5px;
+    font-weight:700;cursor:pointer;
+  }
+  .cancel-btn:hover{border-color:var(--amber);color:var(--amber);}
+  .delete-btn:hover{border-color:#C0392B;color:#C0392B;}
+
   .call-id{
     font-family:'JetBrains Mono',monospace;
     font-size:10px;color:#9AACB1;margin-top:8px;
@@ -567,6 +578,7 @@ document.getElementById('addTechBtn').addEventListener('click', async ()=>{
 
 function statusClass(status){
   if(status === 'הושלם') return 'status-done';
+  if(status === 'בוטל') return 'status-cancelled';
   if(status === 'ממתין להמשך טיפול') return 'status-followup';
   if(status === 'בטיפול') return 'status-progress';
   return 'status-new';
@@ -590,8 +602,8 @@ async function loadCalls(){
 
 function applyFilterAndRender(){
   const filtered = currentFilter === 'open'
-    ? allCalls.filter(c => c['סטטוס'] !== 'הושלם')
-    : allCalls.filter(c => c['סטטוס'] === 'הושלם');
+    ? allCalls.filter(c => c['סטטוס'] !== 'הושלם' && c['סטטוס'] !== 'בוטל')
+    : allCalls.filter(c => c['סטטוס'] === 'הושלם' || c['סטטוס'] === 'בוטל');
   renderList(filtered);
 }
 
@@ -667,12 +679,22 @@ function renderList(calls){
           <span class="assign-label">שייך / העבר ל:</span>
           ${assignPills}
         </div>
+        <div class="danger-row">
+          ${c['סטטוס'] !== 'הושלם' && c['סטטוס'] !== 'בוטל' ? `<button type="button" class="cancel-btn" data-id="${escapeAttr(id)}">🚫 בטל קריאה</button>` : ''}
+          <button type="button" class="delete-btn" data-id="${escapeAttr(id)}">🗑️ מחק לצמיתות</button>
+        </div>
         <div class="call-id">מזהה: ${escapeHtml(id)}</div>
       </div>`;
   }).join('');
 
   listEl.querySelectorAll('.pill').forEach(btn=>{
     btn.addEventListener('click', ()=> reassign(btn.dataset.id, btn.dataset.tech));
+  });
+  listEl.querySelectorAll('.cancel-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=> cancelCall(btn.dataset.id));
+  });
+  listEl.querySelectorAll('.delete-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=> deleteCall(btn.dataset.id));
   });
 }
 
@@ -688,6 +710,43 @@ async function reassign(id, tech){
     loadCalls();
   }catch(err){
     showToast('שגיאה בהעברה, נסה שוב');
+  }
+}
+
+async function cancelCall(id){
+  if(!isConfigured()) return;
+  if(!confirm('לבטל את הקריאה הזו? היא תישאר בגיליון תחת "קריאות סגורות" עם סימון בוטל.')) return;
+  try{
+    await fetch(API_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action:'update', id, status:'בוטל' })
+    });
+    showToast('הקריאה בוטלה ✓');
+    loadCalls();
+  }catch(err){
+    showToast('שגיאה בביטול, נסה שוב');
+  }
+}
+
+async function deleteCall(id){
+  if(!isConfigured()) return;
+  if(!confirm('למחוק את הקריאה הזו לצמיתות? הפעולה אינה ניתנת לביטול - השורה תימחק לגמרי מהגיליון.')) return;
+  try{
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action:'delete', id })
+    });
+    const result = await res.json();
+    if(result.success){
+      showToast('הקריאה נמחקה ✓');
+      loadCalls();
+    }else{
+      showToast(result.error || 'שגיאה במחיקה');
+    }
+  }catch(err){
+    showToast('שגיאה במחיקה, נסה שוב');
   }
 }
 

@@ -409,7 +409,7 @@
     <div class="detail-row" id="dNotesRow"><b>הערות:</b> <span id="dNotes"></span></div>
     <hr class="sep">
 
-    <label for="workDone">מה בוצע</label>
+    <label for="workDone">מה בוצע (חובה)</label>
     <textarea id="workDone" placeholder="תאר את הטיפול שבוצע..."></textarea>
 
     <label>נדרש המשך טיפול?</label>
@@ -452,7 +452,7 @@
 
     <div class="price-grid">
       <div>
-        <label for="techPrice">המחיר שאתה מבקש (₪)</label>
+        <label for="techPrice">המחיר שאתה מבקש (₪) (חובה)</label>
         <input type="number" id="techPrice" placeholder="לדוגמה: 200">
       </div>
       <div>
@@ -1059,11 +1059,24 @@ overlay.addEventListener('click', (e)=>{ if(e.target === overlay) overlay.classL
 
 document.getElementById('saveBtn').addEventListener('click', async ()=>{
   if(!isConfigured()){ showToast('חבר קודם את הגיליון'); return; }
+
+  const workDoneVal = document.getElementById('workDone').value.trim();
+  const techPriceVal = document.getElementById('techPrice').value;
+
+  if(!workDoneVal){
+    showToast('חובה לכתוב מה בוצע בקריאה לפני השמירה');
+    return;
+  }
+  if(!techPriceVal || Number(techPriceVal) <= 0){
+    showToast('חובה למלא את המחיר שאתה מבקש לפני השמירה');
+    return;
+  }
+
   const btn = document.getElementById('saveBtn');
   btn.disabled = true;
   btn.textContent = 'שומר...';
 
-  const workDone = document.getElementById('workDone').value;
+  const workDone = workDoneVal;
   const newStatus = followUpVal === 'כן' ? 'ממתין להמשך טיפול' : 'הושלם';
 
   const payload = {
