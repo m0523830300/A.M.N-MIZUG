@@ -542,10 +542,10 @@ if(!isConfigured()){
   configBox.innerHTML = `<div class="config">⚠️ האפליקציה עדיין לא מחוברת לגיליון. יש להדביק את כתובת ה-Apps Script בשורה <code>API_URL</code> בקוד (בתחילת תגית ה-script).</div>`;
 }
 
-function showToast(msg){
+function showToast(msg, duration){
   toast.textContent = msg;
   toast.classList.add('show');
-  setTimeout(()=>toast.classList.remove('show'), 2400);
+  setTimeout(()=>toast.classList.remove('show'), duration || 2400);
 }
 
 async function loadPriceList(){
@@ -1185,6 +1185,8 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
       const payResult = await payRes.json();
       if(payResult.success && payResult.diffNote){
         showToast(payResult.diffNote);
+      }else if(!payResult.success){
+        showToast('⚠️ נשמרה הקריאה, אך רישום התשלום בטאב הכספים נכשל: ' + (payResult.error || 'שגיאה לא ידועה'), 8000);
       }
     }
 
