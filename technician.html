@@ -93,6 +93,10 @@
     font-size:14px;font-weight:600;cursor:pointer;
   }
   .name-pill.active{background:var(--navy);border-color:var(--navy);color:#fff;}
+  .pin-input{
+    text-align:center;font-size:32px;letter-spacing:16px;font-weight:700;
+    font-family:'JetBrains Mono',monospace;padding:14px 10px 14px 26px;color:var(--navy);
+  }
 
   .session-bar{
     display:flex;align-items:center;justify-content:space-between;
@@ -290,6 +294,24 @@
   }
   .addition-row button:hover{background:var(--navy-deep);}
   .calc-note{font-size:12px;color:var(--text-dim);margin-top:6px;line-height:1.6;}
+
+  .media-upload-row{margin-top:6px;}
+  .media-upload-btn{
+    width:100%;background:#fff;border:1.5px dashed var(--navy);color:var(--navy);
+    padding:13px;border-radius:10px;font-family:'Heebo',sans-serif;font-size:14px;
+    font-weight:700;cursor:pointer;
+  }
+  .media-upload-btn:hover{background:var(--accent-soft);}
+  .media-upload-btn:disabled{opacity:.6;cursor:default;}
+  .media-list{display:flex;flex-direction:column;gap:6px;margin-top:10px;}
+  .media-item{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    background:#F5F8F9;border:1px solid var(--line);border-radius:9px;padding:9px 12px;
+    font-size:13px;
+  }
+  .media-item a{color:var(--navy);font-weight:700;text-decoration:none;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .media-item .media-status{font-size:12px;color:var(--text-dim);white-space:nowrap;}
+  .media-item.uploading .media-status{color:var(--accent);}
 </style>
 </head>
 <body>
@@ -304,11 +326,9 @@
   <div class="login-wrap">
     <div class="login-card">
       <h2>כניסה</h2>
-      <p>בחר את שמך והזן את הטלפון שלך כדי להיכנס</p>
-      <label>שם</label>
-      <div class="name-pills" id="loginNamePills"></div>
-      <label for="loginPhone">טלפון</label>
-      <input type="tel" id="loginPhone" placeholder="050-1234567">
+      <p>הזן את קוד הכניסה שלך (4 ספרות) כדי להיכנס</p>
+      <label for="loginPin">קוד כניסה</label>
+      <input type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="4" id="loginPin" placeholder="••••" class="pin-input">
       <button class="login-submit" id="loginBtn">כניסה</button>
       <div class="login-error" id="loginError"></div>
     </div>
@@ -383,6 +403,15 @@
 
     <hr class="sep">
 
+    <label>תמונות / סרטונים</label>
+    <div class="media-upload-row">
+      <input type="file" id="mediaFileInput" accept="image/*,video/*" multiple style="display:none;">
+      <button type="button" class="media-upload-btn" id="mediaUploadBtn">📎 הוסף תמונה / סרטון</button>
+    </div>
+    <div class="media-list" id="mediaList"></div>
+
+    <hr class="sep">
+
     <label for="itemSearch">פריטי טיפול (בנק מוצרים)</label>
     <div class="item-search-wrap">
       <input type="text" id="itemSearch" placeholder="הקלד חלק מהשם... לדוגמה: גז, נזג, ניקוי">
@@ -452,12 +481,10 @@ let chosenAdditions = [];  // [{reason, amount}]
 
 const loginScreen = document.getElementById('loginScreen');
 const appScreen = document.getElementById('appScreen');
-const loginNamePills = document.getElementById('loginNamePills');
-const loginPhone = document.getElementById('loginPhone');
+const loginPin = document.getElementById('loginPin');
 const loginBtn = document.getElementById('loginBtn');
 const loginError = document.getElementById('loginError');
 const sessionName = document.getElementById('sessionName');
-let selectedLoginName = '';
 
 const listEl = document.getElementById('list');
 const configBox = document.getElementById('configBox');
@@ -480,21 +507,8 @@ function showToast(msg){
   setTimeout(()=>toast.classList.remove('show'), 2400);
 }
 
-// --- Load technician list for the login pills -----------------------
+// --- Load technician list for the reassign pills -----------------------
 function renderNamePills(){
-  if(!TECHNICIANS.length){
-    loginNamePills.innerHTML = `<span style="font-size:13px;color:var(--text-dim);">אין עדיין טכנאים רשומים</span>`;
-  }else{
-    loginNamePills.innerHTML = TECHNICIANS.map(t =>
-      `<button type="button" class="name-pill${t===selectedLoginName?' active':''}" data-name="${escapeAttr(t)}">${escapeHtml(t)}</button>`
-    ).join('');
-    loginNamePills.querySelectorAll('.name-pill').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        selectedLoginName = btn.dataset.name;
-        loginNamePills.querySelectorAll('.name-pill').forEach(b=> b.classList.toggle('active', b === btn));
-      });
-    });
-  }
   assignedPills.innerHTML = [`<button type="button" class="name-pill" data-name="">לא משויך</button>`]
     .concat(TECHNICIANS.map(t => `<button type="button" class="name-pill" data-name="${escapeAttr(t)}">${escapeHtml(t)}</button>`))
     .join('');
@@ -508,16 +522,11 @@ function renderNamePills(){
 
 async function loadTechnicianOptions(){
   if(!isConfigured()) return;
-
-  // הצג מיד רשימה שמורה מהפעם הקודמת (אם יש) כדי שהכפתורים יופיעו באופן מיידי
-  // ולא יראה כאילו האפליקציה תקועה, בזמן שברקע נבדק אם יש עדכון.
   try{
     const cached = localStorage.getItem('cachedTechnicians');
     if(cached){
       TECHNICIANS = JSON.parse(cached);
       renderNamePills();
-    }else{
-      loginNamePills.innerHTML = `<span style="font-size:13px;color:var(--text-dim);">טוען שמות טכנאים...</span>`;
     }
   }catch(err){ /* ignore cache errors */ }
 
@@ -543,11 +552,10 @@ async function loadPriceList(){
 
 // --- Login / session ------------------------------------------------
 loginBtn.addEventListener('click', async ()=>{
-  const name = selectedLoginName;
-  const phone = loginPhone.value.trim();
+  const pin = loginPin.value.trim();
   loginError.classList.remove('show');
-  if(!name || !phone){
-    loginError.textContent = 'יש לבחור שם ולהזין טלפון';
+  if(!pin || pin.length !== 4){
+    loginError.textContent = 'יש להזין קוד בן 4 ספרות';
     loginError.classList.add('show');
     return;
   }
@@ -557,14 +565,14 @@ loginBtn.addEventListener('click', async ()=>{
     const res = await fetch(API_URL, {
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({ action:'login', name, phone })
+      body: JSON.stringify({ action:'login', pin })
     });
     const result = await res.json();
     if(result.success){
-      localStorage.setItem('techAuth', JSON.stringify({ name, phone }));
-      enterApp(name);
+      localStorage.setItem('techAuth', JSON.stringify({ pin, name: result.name }));
+      enterApp(result.name);
     }else{
-      loginError.textContent = result.error || 'שם או טלפון שגויים';
+      loginError.textContent = result.error || 'קוד שגוי';
       loginError.classList.add('show');
     }
   }catch(err){
@@ -581,7 +589,7 @@ document.getElementById('logoutBtn').addEventListener('click', ()=>{
   myName = null;
   appScreen.style.display = 'none';
   loginScreen.style.display = '';
-  loginPhone.value = '';
+  loginPin.value = '';
 });
 
 function enterApp(name){
@@ -782,6 +790,8 @@ function openDetail(id){
   renderChosenItems();
   renderChosenAdditions();
 
+  renderMediaList(c['קבצים מצורפים']);
+
   overlay.classList.add('show');
 }
 
@@ -921,6 +931,86 @@ function buildBillingBreakdown(){
   return parts.join(' + ');
 }
 
+// ============================================================
+// העלאת תמונות/סרטונים ישירות ל-Google Drive
+// ============================================================
+const mediaUploadBtn = document.getElementById('mediaUploadBtn');
+const mediaFileInput = document.getElementById('mediaFileInput');
+const mediaListEl = document.getElementById('mediaList');
+
+function renderMediaList(rawLinks){
+  const links = (rawLinks || '').split('\n').map(s=>s.trim()).filter(Boolean);
+  mediaListEl.innerHTML = links.map((url, i) => `
+    <div class="media-item">
+      <a href="${escapeAttr(url)}" target="_blank" rel="noopener">📎 קובץ מצורף ${i+1}</a>
+    </div>`).join('');
+}
+
+mediaUploadBtn.addEventListener('click', ()=>{
+  if(!isConfigured()){ showToast('חבר קודם את הגיליון'); return; }
+  mediaFileInput.click();
+});
+
+mediaFileInput.addEventListener('change', async ()=>{
+  const files = Array.from(mediaFileInput.files || []);
+  mediaFileInput.value = ''; // מאפשר לבחור שוב את אותו קובץ בפעם הבאה
+  if(!files.length) return;
+
+  for(const file of files){
+    const row = document.createElement('div');
+    row.className = 'media-item uploading';
+    row.innerHTML = `<span>${escapeHtml(file.name)}</span><span class="media-status">מעלה...</span>`;
+    mediaListEl.appendChild(row);
+
+    if(file.size > 25 * 1024 * 1024){
+      row.classList.remove('uploading');
+      row.querySelector('.media-status').textContent = 'קובץ גדול מדי (מעל 25MB)';
+      continue;
+    }
+
+    try{
+      const base64Data = await fileToBase64(file);
+      const res = await fetch(API_URL, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({
+          action:'uploadFile',
+          id: activeId,
+          fileName: file.name,
+          mimeType: file.type || 'application/octet-stream',
+          base64Data
+        })
+      });
+      const result = await res.json();
+      if(result.success){
+        row.classList.remove('uploading');
+        row.innerHTML = `<a href="${escapeAttr(result.url)}" target="_blank" rel="noopener">📎 ${escapeHtml(file.name)}</a><span class="media-status">הועלה ✓</span>`;
+        loadCalls(false);
+      }else{
+        row.classList.remove('uploading');
+        row.querySelector('.media-status').textContent = result.error || 'שגיאה בהעלאה';
+      }
+    }catch(err){
+      row.classList.remove('uploading');
+      const statusEl = row.querySelector('.media-status');
+      if(statusEl) statusEl.textContent = 'שגיאה בהעלאה';
+    }
+  }
+});
+
+function fileToBase64(file){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result; // "data:<mime>;base64,XXXX"
+      const base64 = result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 document.querySelectorAll('#followupToggleGroup .toggle').forEach(t=>{
   t.addEventListener('click', ()=>{
     followUpVal = t.dataset.val;
@@ -996,10 +1086,11 @@ document.getElementById('refreshBtn').addEventListener('click', ()=> loadCalls(t
   const saved = localStorage.getItem('techAuth');
   if(saved){
     try{
-      const { name } = JSON.parse(saved);
+      const { name, pin } = JSON.parse(saved);
+      if(!pin) throw new Error('no pin');
       // נכנסים מיד לאפליקציה בלי לחכות לרשת - מרגיש מיידי בפעם השנייה ואילך.
-      enterApp(name);
-      // בודקים ברקע, בלי לחסום את המסך, שהחשבון עדיין תקף (למשל שהטכנאי
+      enterApp(name || '');
+      // בודקים ברקע, בלי לחסום את המסך, שהקוד עדיין תקף (למשל שהטכנאי
       // לא הוסר מרשימת הטכנאים) - ורק אם לא תקף, מוציאים חזרה למסך הכניסה.
       verifySessionInBackground();
       loadTechnicianOptions();
@@ -1022,14 +1113,22 @@ async function verifySessionInBackground(){
   try{
     const saved = localStorage.getItem('techAuth');
     if(!saved) return;
-    const { name, phone } = JSON.parse(saved);
+    const { pin } = JSON.parse(saved);
     const res = await fetch(API_URL, {
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({ action:'login', name, phone })
+      body: JSON.stringify({ action:'login', pin })
     });
     const result = await res.json();
-    if(!result.success){
+    if(result.success){
+      // מעדכנים את השם המקומי אם השתנה בגיליון, ומרעננים את התצוגה
+      if(result.name && result.name !== myName){
+        localStorage.setItem('techAuth', JSON.stringify({ pin, name: result.name }));
+        myName = result.name;
+        sessionName.textContent = `מחובר כ${result.name}`;
+        loadCalls(false);
+      }
+    }else{
       localStorage.removeItem('techAuth');
       showToast('החיבור שלך פג תוקף, יש להתחבר מחדש');
       document.getElementById('logoutBtn').click();

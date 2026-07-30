@@ -63,6 +63,12 @@
   }
   header h1{margin:0;font-size:21px;font-weight:800;letter-spacing:.2px;}
   header p{margin:6px 0 0;font-size:13px;color:#AFC6CC;font-weight:500;}
+  .switch-view-link{
+    display:inline-block;margin-top:14px;font-size:12.5px;font-weight:700;
+    color:#fff;background:rgba(255,255,255,.14);padding:7px 14px;border-radius:20px;
+    text-decoration:none;position:relative;z-index:1;
+  }
+  .switch-view-link:hover{background:rgba(255,255,255,.22);}
   .stripe{
     height:4px;
     background:repeating-linear-gradient(90deg,var(--accent) 0 22px, transparent 22px 30px);
@@ -135,8 +141,8 @@
     font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;
     background:var(--accent-soft);color:var(--accent);
   }
-  .tech-add-row{display:flex;gap:8px;}
-  .tech-add-row input{flex:1;}
+  .tech-add-row{display:flex;gap:8px;flex-wrap:wrap;}
+  .tech-add-row input{flex:1;min-width:110px;}
   .tech-add-row button{
     background:var(--navy);color:#fff;border:none;padding:0 16px;border-radius:9px;
     font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;
@@ -206,6 +212,13 @@
   }
   .price-box b{font-weight:700;}
   .price-margin{font-weight:700;color:var(--green);}
+
+  .media-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+  .media-row a{
+    font-size:12px;font-weight:700;color:var(--navy);text-decoration:none;
+    background:#F5F8F9;border:1px solid var(--line);border-radius:20px;padding:5px 12px;
+  }
+  .media-row a:hover{border-color:var(--navy);}
 
   .assign-row{
     display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap;
@@ -323,6 +336,7 @@
   <header>
     <h1>א.מ.ן מיזוג אוויר</h1>
     <p>פתיחת קריאה חדשה למעקב הטכנאי</p>
+    <a href="technician.html" class="switch-view-link">🔧 עבור למסך טכנאי</a>
   </header>
   <div class="stripe"></div>
 
@@ -333,7 +347,8 @@
     <div class="current-list" id="techChips"></div>
     <div class="tech-add-row">
       <input id="newTechName" placeholder="שם הטכנאי">
-      <input id="newTechPhone" placeholder="טלפון (ישמש כסיסמה שלו)">
+      <input id="newTechPhone" placeholder="טלפון (ליצירת קשר)">
+      <input id="newTechPin" inputmode="numeric" maxlength="4" placeholder="קוד כניסה (4 ספרות)">
       <button type="button" id="addTechBtn">הוסף</button>
     </div>
   </div>
@@ -354,27 +369,27 @@
       <div class="no-speech-note" id="qcNote"></div>
     </div>
 
-    <label for="customerName">שם הלקוח</label>
+    <label for="customerName">שם הלקוח (לא חובה)</label>
     <div class="field-row">
-      <input id="customerName" required placeholder="לדוגמה: משפחת כהן">
+      <input id="customerName" placeholder="לדוגמה: משפחת כהן">
       <button type="button" class="mic-btn" data-target="customerName" title="הקלטה"></button>
     </div>
 
-    <label for="phone">מספר טלפון</label>
+    <label for="phone">מספר טלפון (חובה)</label>
     <div class="field-row">
       <input id="phone" type="tel" required placeholder="050-1234567">
       <button type="button" class="mic-btn" data-target="phone" title="הקלטה"></button>
     </div>
 
-    <label for="address">כתובת</label>
+    <label for="address">כתובת (לא חובה)</label>
     <div class="field-row">
-      <input id="address" required placeholder="רחוב, מספר, עיר">
+      <input id="address" placeholder="רחוב, מספר, עיר">
       <button type="button" class="mic-btn" data-target="address" title="הקלטה"></button>
     </div>
 
-    <label for="issueType">סוג התקלה</label>
+    <label for="issueType">סוג התקלה (לא חובה)</label>
     <div class="field-row">
-      <input id="issueType" required placeholder="לדוגמה: המזגן לא מקרר">
+      <input id="issueType" placeholder="לדוגמה: המזגן לא מקרר">
       <button type="button" class="mic-btn" data-target="issueType" title="הקלטה"></button>
     </div>
 
@@ -489,19 +504,22 @@ function renderTechUI(){
 document.getElementById('addTechBtn').addEventListener('click', async ()=>{
   const name = document.getElementById('newTechName').value.trim();
   const phone = document.getElementById('newTechPhone').value.trim();
-  if(!name || !phone){ showToast('צריך למלא שם וטלפון'); return; }
+  const pin = document.getElementById('newTechPin').value.trim();
+  if(!name){ showToast('צריך למלא שם'); return; }
+  if(!/^\d{4}$/.test(pin)){ showToast('קוד הכניסה חייב להיות בדיוק 4 ספרות'); return; }
   const btn = document.getElementById('addTechBtn');
   btn.disabled = true;
   try{
     const res = await fetch(API_URL, {
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({ action:'addTechnician', name, phone })
+      body: JSON.stringify({ action:'addTechnician', name, phone, pin })
     });
     const result = await res.json();
     if(result.success){
       document.getElementById('newTechName').value = '';
       document.getElementById('newTechPhone').value = '';
+      document.getElementById('newTechPin').value = '';
       showToast(`${name} נוסף בהצלחה ✓`);
       await loadTechnicians();
     }else{
@@ -564,6 +582,12 @@ function renderList(calls){
       <button type="button" class="pill ${assignedTech === normalizeName(t) ? 'active' : ''}" data-id="${escapeAttr(id)}" data-tech="${escapeAttr(t)}">${escapeHtml(t)}</button>
     `).join('');
 
+    const mediaLinks = (c['קבצים מצורפים']||'').split('\n').map(s=>s.trim()).filter(Boolean);
+    const mediaBox = mediaLinks.length ? `
+        <div class="media-row">
+          ${mediaLinks.map((url,i)=>`<a href="${escapeAttr(url)}" target="_blank" rel="noopener">📎 קובץ ${i+1}</a>`).join('')}
+        </div>` : '';
+
     return `
       <div class="call ${sc}">
         <div class="call-top">
@@ -577,6 +601,7 @@ function renderList(calls){
           <div><b>טכנאי:</b> ${assignedTech ? escapeHtml(assignedTech) : 'לא משויך'}</div>
         </div>
         ${workDone}
+        ${mediaBox}
         ${priceBox}
         <div class="assign-row">
           <span class="assign-label">שייך / העבר ל:</span>
