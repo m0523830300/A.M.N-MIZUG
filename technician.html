@@ -1170,6 +1170,7 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
       body: JSON.stringify(payload)
     });
 
+    let paymentSuffix = '';
     if(paidVal === 'כן'){
       const payRes = await fetch(API_URL, {
         method:'POST',
@@ -1184,13 +1185,13 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
       });
       const payResult = await payRes.json();
       if(payResult.success && payResult.diffNote){
-        showToast(payResult.diffNote);
+        paymentSuffix = ' | ' + payResult.diffNote;
       }else if(!payResult.success){
-        showToast('⚠️ נשמרה הקריאה, אך רישום התשלום בטאב הכספים נכשל: ' + (payResult.error || 'שגיאה לא ידועה'), 8000);
+        alert('⚠️ הקריאה נשמרה, אך רישום התשלום בטאב הכספים נכשל:\n\n' + (payResult.error || 'שגיאה לא ידועה'));
       }
     }
 
-    showToast('העדכון נשמר ✓');
+    showToast('העדכון נשמר ✓' + paymentSuffix, paymentSuffix ? 6000 : 2400);
     overlay.classList.remove('show');
     loadCalls();
   }catch(err){
