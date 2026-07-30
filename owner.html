@@ -421,6 +421,12 @@
       <button type="button" class="mic-btn" data-target="issueType" title="הקלטה"></button>
     </div>
 
+    <label>סוג עבודה</label>
+    <div class="tech-pills" id="workTypePills">
+      <button type="button" class="pill active" data-val="תיקון">תיקון</button>
+      <button type="button" class="pill" data-val="התקנה">התקנה</button>
+    </div>
+
     <label>שיוך לטכנאי</label>
     <div class="tech-pills" id="assignedPills"></div>
 
@@ -492,13 +498,20 @@ const toast = document.getElementById('toast');
 const assignedPills = document.getElementById('assignedPills');
 const techChips = document.getElementById('techChips');
 let assignedTechValue = '';
+let workTypeVal = 'תיקון';
+document.querySelectorAll('#workTypePills .pill').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    workTypeVal = btn.dataset.val;
+    document.querySelectorAll('#workTypePills .pill').forEach(b=> b.classList.toggle('active', b === btn));
+  });
+});
 
 let TECHNICIANS = [];
 
-function showToast(msg){
+function showToast(msg, duration){
   toast.textContent = msg;
   toast.classList.add('show');
-  setTimeout(()=>toast.classList.remove('show'), 2400);
+  setTimeout(()=>toast.classList.remove('show'), duration || 2400);
 }
 
 function isConfigured(){ return API_URL && !API_URL.includes('PASTE_YOUR'); }
@@ -812,19 +825,27 @@ document.getElementById('callForm').addEventListener('submit', async (e)=>{
     phone: document.getElementById('phone').value,
     address: document.getElementById('address').value,
     issueType: document.getElementById('issueType').value,
+    workType: workTypeVal,
     assignedTechnician: assignedTechValue,
     notes: document.getElementById('notes').value
   };
 
   try{
-    await fetch(API_URL, {
+    const res = await fetch(API_URL, {
       method: 'POST',
       headers: {'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify(payload)
     });
+    const result = await res.json();
     document.getElementById('callForm').reset();
+    workTypeVal = 'תיקון';
+    document.querySelectorAll('#workTypePills .pill').forEach(b=> b.classList.toggle('active', b.dataset.val === workTypeVal));
     renderTechUI();
-    showToast('הקריאה נשלחה לטכנאי ✓');
+    if(result.doc && result.doc.success){
+      showToast(`הקריאה נשלחה ✓ | מספר מסמך: ${result.doc.docNumber} (${result.doc.customerFound ? 'לקוח קיים' : 'לקוח חדש נוצר'})`, 7000);
+    }else{
+      showToast('הקריאה נשלחה לטכנאי ✓' + (result.doc && result.doc.error ? ' (שגיאה ביצירת מסמך: ' + result.doc.error + ')' : ''), result.doc && result.doc.error ? 7000 : 2400);
+    }
     loadCalls();
   }catch(err){
     showToast('שגיאה בשליחה, נסה שוב');
