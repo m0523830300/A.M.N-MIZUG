@@ -640,11 +640,20 @@ function renderList(calls){
       const vatTxt = c['כולל מעמ טכנאי'] === 'כן' ? 'כולל מע"מ' : 'לא כולל מע"מ';
       const margin = (techPrice && customerPrice && !isNaN(techPrice) && !isNaN(customerPrice))
         ? `<div class="price-margin">רווח: ${Number(customerPrice) - Number(techPrice)} ₪</div>` : '';
+      const paidStatus = c['שולם בפועל'] === 'כן';
+      const amountReceived = c['סכום שהתקבל'];
+      let paidRow = `<div><b>שולם בפועל:</b> ${paidStatus ? `כן ✓ (${escapeHtml(amountReceived||'-')} ₪)` : 'עדיין לא'}</div>`;
+      if(paidStatus && amountReceived && techPrice && !isNaN(amountReceived) && !isNaN(techPrice)){
+        const diff = Number(amountReceived) - Number(techPrice);
+        if(diff > 0) paidRow += `<div class="price-margin">יתרה לזכות העסק: ${diff} ₪</div>`;
+        else if(diff < 0) paidRow += `<div style="color:#C0392B;font-weight:700;">חסר להשלים לטכנאי: ${-diff} ₪</div>`;
+      }
       priceBox = `
         <div class="price-box">
           <div><b>מחיר טכנאי:</b> ${escapeHtml(techPrice||'-')} ₪ (${vatTxt})</div>
           <div><b>מחיר ללקוח:</b> ${escapeHtml(customerPrice||'-')} ₪</div>
           <div><b>נאמר ללקוח:</b> ${c['נאמר ללקוח'] === 'כן' ? 'כן ✓' : 'לא'}</div>
+          ${paidRow}
           ${margin}
         </div>`;
     }

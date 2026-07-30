@@ -472,6 +472,27 @@
       <input type="checkbox" id="toldCustomer"> נאמר ללקוח המחיר
     </label>
 
+    <hr class="sep">
+
+    <label>קיבלת תשלום מהלקוח?</label>
+    <div class="toggle-group" id="paidToggleGroup">
+      <div class="toggle yes" data-val="כן">כן, קיבלתי</div>
+      <div class="toggle no active" data-val="לא">עדיין לא</div>
+    </div>
+
+    <div id="paymentDetailsBox" style="display:none;">
+      <label for="amountReceived">כמה קיבלת בפועל (₪)</label>
+      <input type="number" id="amountReceived" placeholder="לדוגמה: 250">
+
+      <label>אמצעי תשלום</label>
+      <div class="name-pills" id="paymentMethodPills">
+        <button type="button" class="name-pill active" data-val="מזומן">מזומן</button>
+        <button type="button" class="name-pill" data-val="אשראי">אשראי</button>
+        <button type="button" class="name-pill" data-val="העברה">העברה</button>
+      </div>
+      <div class="calc-note" id="paymentDiffNote"></div>
+    </div>
+
     <div class="sheet-actions">
       <button class="close" id="closeBtn">סגור</button>
       <button class="save" id="saveBtn">שמור עדכון</button>
@@ -493,6 +514,8 @@ let currentFilter = 'open';
 let activeId = null;
 let followUpVal = 'לא';
 let vatVal = 'לא';
+let paidVal = 'לא';
+let paymentMethodVal = 'מזומן';
 let knownIds = null;
 
 let PRICE_LIST = []; // [{name, customerPrice, techPrice}]
@@ -782,6 +805,14 @@ function openDetail(id){
   document.getElementById('customerPrice').value = c['מחיר ללקוח'] || '';
   document.getElementById('toldCustomer').checked = c['נאמר ללקוח'] === 'כן';
 
+  paidVal = c['שולם בפועל'] === 'כן' ? 'כן' : 'לא';
+  document.getElementById('amountReceived').value = c['סכום שהתקבל'] || c['מחיר ללקוח'] || '';
+  paymentMethodVal = 'מזומן';
+  document.querySelectorAll('#paymentMethodPills .name-pill').forEach(b=>{
+    b.classList.toggle('active', b.dataset.val === paymentMethodVal);
+  });
+  updatePaymentDiffNote();
+
   followUpVal = c['נדרש המשך טיפול'] === 'כן' ? 'כן' : 'לא';
   vatVal = c['כולל מעמ טכנאי'] === 'כן' ? 'כן' : 'לא';
   updateToggleUI();
@@ -814,6 +845,10 @@ function updateToggleUI(){
   document.querySelectorAll('#vatToggleGroup .toggle').forEach(t=>{
     t.classList.toggle('active', t.dataset.val === vatVal);
   });
+  document.querySelectorAll('#paidToggleGroup .toggle').forEach(t=>{
+    t.classList.toggle('active', t.dataset.val === paidVal);
+  });
+  document.getElementById('paymentDetailsBox').style.display = paidVal === 'כן' ? '' : 'none';
 }
 
 // ============================================================
@@ -1051,6 +1086,37 @@ document.querySelectorAll('#vatToggleGroup .toggle').forEach(t=>{
     updateToggleUI();
   });
 });
+document.querySelectorAll('#paidToggleGroup .toggle').forEach(t=>{
+  t.addEventListener('click', ()=>{
+    paidVal = t.dataset.val;
+    updateToggleUI();
+  });
+});
+document.querySelectorAll('#paymentMethodPills .name-pill').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    paymentMethodVal = btn.dataset.val;
+    document.querySelectorAll('#paymentMethodPills .name-pill').forEach(b=> b.classList.toggle('active', b === btn));
+  });
+});
+document.getElementById('amountReceived').addEventListener('input', updatePaymentDiffNote);
+
+function updatePaymentDiffNote(){
+  const techPrice = Number(document.getElementById('techPrice').value) || 0;
+  const received = Number(document.getElementById('amountReceived').value) || 0;
+  const noteEl = document.getElementById('paymentDiffNote');
+  if(!document.getElementById('amountReceived').value){
+    noteEl.textContent = '';
+    return;
+  }
+  const diff = received - techPrice;
+  if(diff > 0){
+    noteEl.textContent = `💰 יתרה לזכות העסק: ${diff} ₪ (קיבלת ${received}, מגיע לך ${techPrice})`;
+  }else if(diff < 0){
+    noteEl.textContent = `⚠️ חסר ${-diff} ₪ שצריך להשלים לך (קיבלת ${received}, מגיע לך ${techPrice})`;
+  }else{
+    noteEl.textContent = `✅ מדויק - קיבלת בדיוק את המחיר שנקבע (${techPrice} ₪)`;
+  }
+}
 
 document.getElementById('closeBtn').addEventListener('click', ()=>{
   overlay.classList.remove('show');
@@ -1069,6 +1135,10 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
   }
   if(!techPriceVal || Number(techPriceVal) <= 0){
     showToast('חובה למלא את המחיר שאתה מבקש לפני השמירה');
+    return;
+  }
+  if(paidVal === 'כן' && (!document.getElementById('amountReceived').value || Number(document.getElementById('amountReceived').value) <= 0)){
+    showToast('חובה למלא כמה קיבלת בפועל');
     return;
   }
 
@@ -1099,6 +1169,25 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
       headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify(payload)
     });
+
+    if(paidVal === 'כן'){
+      const payRes = await fetch(API_URL, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({
+          action:'recordPayment',
+          id: activeId,
+          amountReceived: document.getElementById('amountReceived').value,
+          paymentMethod: paymentMethodVal,
+          technicianName: myName
+        })
+      });
+      const payResult = await payRes.json();
+      if(payResult.success && payResult.diffNote){
+        showToast(payResult.diffNote);
+      }
+    }
+
     showToast('העדכון נשמר ✓');
     overlay.classList.remove('show');
     loadCalls();
