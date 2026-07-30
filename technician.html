@@ -304,11 +304,13 @@
   .calc-note{font-size:12px;color:var(--text-dim);margin-top:6px;line-height:1.6;}
 
   .media-upload-row{margin-top:6px;}
+  .media-upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
   .media-upload-btn{
     width:100%;background:#fff;border:1.5px dashed var(--navy);color:var(--navy);
-    padding:13px;border-radius:10px;font-family:'Heebo',sans-serif;font-size:14px;
+    padding:13px 8px;border-radius:10px;font-family:'Heebo',sans-serif;font-size:13.5px;
     font-weight:700;cursor:pointer;
   }
+  .media-upload-btn.wide{grid-column:1 / -1;}
   .media-upload-btn:hover{background:var(--accent-soft);}
   .media-upload-btn:disabled{opacity:.6;cursor:default;}
   .media-list{display:flex;flex-direction:column;gap:6px;margin-top:10px;}
@@ -412,9 +414,13 @@
     <hr class="sep">
 
     <label>תמונות / סרטונים</label>
-    <div class="media-upload-row">
+    <div class="media-upload-row media-upload-grid">
+      <input type="file" id="captureImageInput" accept="image/*" capture="environment" style="display:none;">
+      <input type="file" id="captureVideoInput" accept="video/*" capture="environment" style="display:none;">
       <input type="file" id="mediaFileInput" accept="image/*,video/*" multiple style="display:none;">
-      <button type="button" class="media-upload-btn" id="mediaUploadBtn">📎 הוסף תמונה / סרטון</button>
+      <button type="button" class="media-upload-btn" id="captureImageBtn">📷 צלם תמונה</button>
+      <button type="button" class="media-upload-btn" id="captureVideoBtn">🎥 צלם סרטון</button>
+      <button type="button" class="media-upload-btn wide" id="mediaUploadBtn">🖼️ הוסף מהגלריה</button>
     </div>
     <div class="media-list" id="mediaList"></div>
 
@@ -961,6 +967,10 @@ function buildBillingBreakdown(){
 // ============================================================
 const mediaUploadBtn = document.getElementById('mediaUploadBtn');
 const mediaFileInput = document.getElementById('mediaFileInput');
+const captureImageBtn = document.getElementById('captureImageBtn');
+const captureImageInput = document.getElementById('captureImageInput');
+const captureVideoBtn = document.getElementById('captureVideoBtn');
+const captureVideoInput = document.getElementById('captureVideoInput');
 const mediaListEl = document.getElementById('mediaList');
 
 function renderMediaList(rawLinks){
@@ -975,10 +985,22 @@ mediaUploadBtn.addEventListener('click', ()=>{
   if(!isConfigured()){ showToast('חבר קודם את הגיליון'); return; }
   mediaFileInput.click();
 });
+captureImageBtn.addEventListener('click', ()=>{
+  if(!isConfigured()){ showToast('חבר קודם את הגיליון'); return; }
+  captureImageInput.click();
+});
+captureVideoBtn.addEventListener('click', ()=>{
+  if(!isConfigured()){ showToast('חבר קודם את הגיליון'); return; }
+  captureVideoInput.click();
+});
 
-mediaFileInput.addEventListener('change', async ()=>{
-  const files = Array.from(mediaFileInput.files || []);
-  mediaFileInput.value = ''; // מאפשר לבחור שוב את אותו קובץ בפעם הבאה
+mediaFileInput.addEventListener('change', ()=> uploadFiles(mediaFileInput));
+captureImageInput.addEventListener('change', ()=> uploadFiles(captureImageInput));
+captureVideoInput.addEventListener('change', ()=> uploadFiles(captureVideoInput));
+
+async function uploadFiles(inputEl){
+  const files = Array.from(inputEl.files || []);
+  inputEl.value = ''; // מאפשר לצלם/לבחור שוב את אותו קובץ בפעם הבאה
   if(!files.length) return;
 
   for(const file of files){
@@ -1021,7 +1043,7 @@ mediaFileInput.addEventListener('change', async ()=>{
       if(statusEl) statusEl.textContent = 'שגיאה בהעלאה';
     }
   }
-});
+}
 
 function fileToBase64(file){
   return new Promise((resolve, reject)=>{
