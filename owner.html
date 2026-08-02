@@ -747,7 +747,7 @@ function renderList(calls){
         </div>
         <div class="call-meta">
           <div><b>כתובת:</b> ${c['כתובת'] ? `<a href="https://waze.com/ul?q=${encodeURIComponent(c['כתובת'])}&navigate=yes" target="_blank" rel="noopener">${escapeHtml(c['כתובת'])} 🧭</a>` : ''}</div>
-          <div><b>טלפון:</b> ${escapeHtml(c['טלפון']||'')}</div>
+          <div><b>טלפון:</b> ${c['טלפון'] ? `<a href="tel:${escapeAttr(c['טלפון'])}">${escapeHtml(c['טלפון'])}</a>` : ''}</div>
           <div><b>תקלה:</b> ${escapeHtml(c['סוג תקלה']||'')}</div>
           <div><b>טכנאי:</b> ${assignedTech ? escapeHtml(assignedTech) : 'לא משויך'}</div>
         </div>

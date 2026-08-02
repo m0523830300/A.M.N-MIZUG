@@ -225,6 +225,13 @@
     color:#25D366;vertical-align:middle;margin-right:6px;
   }
   .whatsapp-link:hover{opacity:.8;}
+  .onway-btn{
+    width:100%;margin-top:14px;background:var(--navy);color:#fff;border:none;
+    padding:13px;border-radius:10px;font-family:'Heebo',sans-serif;font-size:14px;
+    font-weight:700;cursor:pointer;
+  }
+  .onway-btn:hover{background:var(--navy-deep);}
+  .onway-btn:disabled{opacity:.6;cursor:default;}
   hr.sep{border:none;border-top:1px dashed var(--line);margin:16px 0;}
   label{display:block;font-size:13px;font-weight:600;color:var(--text-dim);margin:12px 0 6px;}
   input[type="number"], input[type="text"], input[type="tel"], select{
@@ -413,6 +420,9 @@
         <img id="ownerPhotoImg" src="" alt="תמונת הכוונה" style="width:100%;border-radius:10px;border:1px solid var(--line);">
       </a>
     </div>
+
+    <button type="button" class="onway-btn" id="onWayBtn">🚗 בדרך אליך - עדכן לקוח ב-SMS</button>
+
     <hr class="sep">
 
     <label for="workDone">מה בוצע (חובה)</label>
@@ -1141,6 +1151,32 @@ function updatePaymentDiffNote(){
     noteEl.textContent = `✅ מדויק - קיבלת בדיוק את המחיר שנקבע (${techPrice} ₪)`;
   }
 }
+
+document.getElementById('onWayBtn').addEventListener('click', async ()=>{
+  if(!isConfigured() || !activeId) return;
+  const btn = document.getElementById('onWayBtn');
+  btn.disabled = true;
+  btn.textContent = 'שולח...';
+  try{
+    const res = await fetch(API_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action:'notifyCustomerOnWay', id: activeId, technicianName: myName })
+    });
+    const result = await res.json();
+    if(result.success){
+      showToast('✓ הלקוח קיבל הודעה שאתה בדרך');
+      loadCalls(false);
+    }else{
+      showToast('שגיאה בשליחה: ' + (result.error || 'לא ידוע'), 6000);
+    }
+  }catch(err){
+    showToast('שגיאה בשליחה, נסה שוב');
+  }finally{
+    btn.disabled = false;
+    btn.textContent = '🚗 בדרך אליך - עדכן לקוח ב-SMS';
+  }
+});
 
 document.getElementById('closeBtn').addEventListener('click', ()=>{
   overlay.classList.remove('show');
