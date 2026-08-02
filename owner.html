@@ -795,12 +795,19 @@ function renderList(calls){
 async function reassign(id, tech){
   if(!isConfigured()) return;
   try{
-    await fetch(API_URL, {
+    const res = await fetch(API_URL, {
       method: 'POST',
       headers: {'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({ action:'update', id, assignedTechnician: tech })
     });
-    showToast(`הקריאה הועברה ל${tech} ✓`);
+    const result = await res.json();
+    if(result.sms && !result.sms.success){
+      showToast(`הקריאה הועברה ל${tech}, אך שליחת ה-SMS נכשלה: ${result.sms.error || ''}`, 6000);
+    }else if(result.sms && result.sms.success){
+      showToast(`הקריאה הועברה ל${tech} ✓ | נשלח SMS ✓`);
+    }else{
+      showToast(`הקריאה הועברה ל${tech} ✓`);
+    }
     loadCalls();
   }catch(err){
     showToast('שגיאה בהעברה, נסה שוב');
@@ -1014,6 +1021,10 @@ document.getElementById('callForm').addEventListener('submit', async (e)=>{
     renderTechUI();
     if(result.skippedCall){
       showToast('📋 נקלט - זו התקנה, לא נשלח לטכנאי (רק לקוח + מסמך)');
+    }else if(result.sms && !result.sms.success){
+      showToast('הקריאה נשלחה לטכנאי ✓, אך ה-SMS נכשל: ' + (result.sms.error || ''), 6000);
+    }else if(result.sms && result.sms.success){
+      showToast('הקריאה נשלחה לטכנאי ✓ | נשלח SMS ✓');
     }else{
       showToast('הקריאה נשלחה לטכנאי ✓');
     }
