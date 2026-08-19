@@ -567,7 +567,7 @@ function showToast(msg, duration){
 async function loadPriceList(){
   if(!isConfigured()) return;
   try{
-    const res = await fetch(API_URL + '?action=priceList');
+    const res = await fetch(API_URL + '?action=priceList', { cache: 'no-store' });
     PRICE_LIST = await res.json();
   }catch(err){
     PRICE_LIST = [];
@@ -696,7 +696,7 @@ async function loadCalls(showSpinner){
   if(!isConfigured() || !myName) return;
   if(showSpinner) listEl.innerHTML = `<div class="loading">טוען קריאות...</div>`;
   try{
-    const res = await fetch(API_URL);
+    const res = await fetch(API_URL, { cache: 'no-store' });
     const raw = (await res.json()).reverse();
     // מציג רק את הקריאות המשויכות לטכנאי המחובר — אין גישה לקריאות של טכנאים אחרים
     allCalls = raw.filter(c => normalizeName(c['טכנאי משויך']) === normalizeName(myName));

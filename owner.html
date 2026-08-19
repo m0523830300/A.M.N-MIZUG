@@ -589,7 +589,7 @@ async function loadTechnicians(){
     }
   }catch(err){ /* ignore cache errors */ }
   try{
-    const res = await fetch(API_URL + '?action=technicians');
+    const res = await fetch(API_URL + '?action=technicians', { cache: 'no-store' });
     TECHNICIANS = await res.json();
     localStorage.setItem('cachedTechnicians', JSON.stringify(TECHNICIANS));
   }catch(err){
@@ -662,7 +662,7 @@ async function loadCalls(){
   if(!isConfigured()) return;
   listEl.innerHTML = `<div class="loading">טוען קריאות...</div>`;
   try{
-    const res = await fetch(API_URL);
+    const res = await fetch(API_URL, { cache: 'no-store' });
     const data = await res.json();
     allCalls = data.reverse();
     applyFilterAndRender();
@@ -801,14 +801,23 @@ async function reassign(id, tech){
       body: JSON.stringify({ action:'update', id, assignedTechnician: tech })
     });
     const result = await res.json();
-    if(result.sms && !result.sms.success){
-      showToast(`הקריאה הועברה ל${tech}, אך שליחת ה-SMS נכשלה: ${result.sms.error || ''}`, 6000);
-    }else if(result.sms && result.sms.success){
-      showToast(`הקריאה הועברה ל${tech} ✓ | נשלח SMS ✓`);
-    }else{
-      showToast(`הקריאה הועברה ל${tech} ✓`);
-    }
+    showToast(`הקריאה הועברה ל${tech} ✓`);
     loadCalls();
+
+    // שליחת ה-SMS רצה ברקע בלי לעכב את המשתמש - מעדכנים בטוסט נפרד כשמסתיים
+    if(result.needsSms){
+      fetch(API_URL, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({ action:'sendAssignmentSms', ...result.needsSms })
+      }).then(r=>r.json()).then(sms=>{
+        if(sms.success){
+          showToast(`✓ נשלח SMS ל${tech}`);
+        }else{
+          showToast(`⚠️ שליחת ה-SMS ל${tech} נכשלה: ${sms.error || ''}`, 6000);
+        }
+      }).catch(()=>{});
+    }
   }catch(err){
     showToast('שגיאה בהעברה, נסה שוב');
   }
@@ -1021,14 +1030,31 @@ document.getElementById('callForm').addEventListener('submit', async (e)=>{
     renderTechUI();
     if(result.skippedCall){
       showToast('📋 נקלט - זו התקנה, לא נשלח לטכנאי (רק לקוח + מסמך)');
-    }else if(result.sms && !result.sms.success){
-      showToast('הקריאה נשלחה לטכנאי ✓, אך ה-SMS נכשל: ' + (result.sms.error || ''), 6000);
-    }else if(result.sms && result.sms.success){
-      showToast('הקריאה נשלחה לטכנאי ✓ | נשלח SMS ✓');
     }else{
       showToast('הקריאה נשלחה לטכנאי ✓');
     }
     loadCalls();
+
+    // שליחת SMS לטכנאי (אם שויך) רצה ברקע בלי לעכב את המשתמש
+    if(!result.skippedCall && payload.assignedTechnician){
+      fetch(API_URL, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({
+          action:'sendAssignmentSms',
+          technicianName: payload.assignedTechnician,
+          customerName: payload.customerName,
+          address: payload.address,
+          issueType: payload.issueType
+        })
+      }).then(r=>r.json()).then(sms=>{
+        if(sms.success){
+          showToast(`✓ נשלח SMS ל${payload.assignedTechnician}`);
+        }else{
+          showToast(`⚠️ שליחת ה-SMS נכשלה: ${sms.error || ''}`, 6000);
+        }
+      }).catch(()=>{});
+    }
 
     // הקצאת לקוח/מספר מסמך רצה ברקע בלי לעכב את המשתמש - מעדכנים בטוסט נפרד כשמסתיים
     fetch(API_URL, {
@@ -1185,7 +1211,7 @@ document.getElementById('showReportBtn').addEventListener('click', async ()=>{
 
   let calls;
   try{
-    const res = await fetch(API_URL);
+    const res = await fetch(API_URL, { cache: 'no-store' });
     calls = await res.json();
   }catch(err){
     reportContent.innerHTML = `<div class="report-empty">שגיאה בטעינת הנתונים.</div>`;
