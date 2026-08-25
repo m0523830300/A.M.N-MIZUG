@@ -1,0 +1,8 @@
+**/node_modules/**
+**/.git/**
+**/.github/**
+**/.clasprc.json
+**/.env*
+**/package.json
+**/package-lock.json
+**/*.md
