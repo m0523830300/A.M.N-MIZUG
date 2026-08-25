@@ -402,6 +402,28 @@
   }
   .report-export button:hover{border-color:var(--accent);color:var(--accent);}
   .report-empty{margin-top:14px;font-size:13px;color:var(--text-dim);text-align:center;}
+  .collection-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0 20px 14px;}
+  .collection-stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;}
+  .collection-stat span{display:block;color:var(--text-dim);font-size:12px;margin-bottom:4px;}
+  .collection-stat b{font-size:20px;color:var(--navy);}
+  .collection-tools{display:flex;gap:9px;margin:0 20px 14px;}
+  .collection-tools input,.collection-tools select{flex:1;margin:0;}
+  .collection-list{margin:0 20px;}
+  .collection-card{background:var(--card);border:1px solid var(--line);border-right:5px solid var(--navy);border-radius:12px;padding:14px;margin-bottom:11px;}
+  .collection-card.unpriced{border-right-color:var(--accent);background:var(--accent-soft);}
+  .collection-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;}
+  .collection-name{font-weight:800;color:var(--navy);font-size:17px;}
+  .collection-amount{font-weight:800;color:var(--navy);font-size:18px;white-space:nowrap;}
+  .collection-warning{display:inline-block;margin-top:6px;padding:4px 8px;border-radius:7px;background:#F7D8D4;color:#982C23;font-size:12px;font-weight:700;}
+  .collection-meta{margin-top:8px;color:var(--text-dim);font-size:12.5px;line-height:1.7;}
+  .collection-contact{display:grid;grid-template-columns:1fr 1.3fr auto;gap:7px;margin-top:10px;}
+  .collection-contact input{margin:0;min-width:0;}
+  .collection-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;}
+  .collection-actions button,.collection-contact button,.collection-login button{border:0;border-radius:8px;padding:9px 12px;font:700 12.5px 'Heebo',sans-serif;cursor:pointer;}
+  .btn-whatsapp{background:#DCF8E8;color:#17663B;}.btn-email{background:#E7F0FD;color:#245A9C;}.btn-phone{background:#F0ECFF;color:#563A91;}.btn-log{background:var(--navy);color:#fff;}.btn-save{background:var(--accent);color:#fff;}
+  .collection-login{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:0 20px 14px;display:flex;gap:8px;align-items:center;}
+  .collection-login input{margin:0;flex:1;}.collection-login button{background:var(--navy);color:#fff;}
+  @media(max-width:650px){.collection-summary{grid-template-columns:1fr}.collection-contact{grid-template-columns:1fr}.collection-head{display:block}.collection-amount{margin-top:6px}}
 </style>
 </head>
 <body>
@@ -510,7 +532,30 @@
     </div>
   </div>
 
-  <div class="section-title"><span class="n">04</span> טכנאים</div>
+  <div class="section-title"><span class="n">04</span> מעקב גבייה</div>
+  <div class="toolbar">
+    <div></div>
+    <button class="refresh" id="collectionRefreshBtn">רענון</button>
+  </div>
+  <div class="collection-login" id="collectionLoginBox">
+    <input type="password" inputmode="numeric" id="collectionOwnerPin" placeholder="קוד כניסה לגבייה">
+    <button type="button" id="collectionLoginBtn">כניסה</button>
+  </div>
+  <div id="collectionProtected" style="display:none;">
+    <div class="collection-summary" id="collectionSummary"></div>
+    <div class="collection-tools">
+      <input id="collectionSearch" placeholder="חיפוש לקוח...">
+      <select id="collectionFilter">
+        <option value="all">כל החייבים</option>
+        <option value="ready">סכום סופי</option>
+        <option value="unpriced">לפני תמחור</option>
+        <option value="missing">חסרים פרטי קשר</option>
+      </select>
+    </div>
+    <div id="collectionList" class="collection-list"></div>
+  </div>
+
+  <div class="section-title"><span class="n">05</span> טכנאים</div>
   <div class="tech-manager">
     <div class="current-list" id="techChips"></div>
     <div class="tech-add-row">
@@ -1366,6 +1411,166 @@ document.getElementById('exportPdfBtn').addEventListener('click', ()=>{
   win.document.close();
   win.onload = () => win.print();
 });
+
+// מעקב גבייה - פתיחת הודעה ידנית ותיעוד לאחר השליחה
+let COLLECTIONS = [];
+const COLLECTION_PENDING_CHANNEL = {};
+let COLLECTION_OWNER_TOKEN = sessionStorage.getItem('collectionOwnerToken') || '';
+
+function money(value){
+  return new Intl.NumberFormat('he-IL',{style:'currency',currency:'ILS',maximumFractionDigits:0}).format(Number(value)||0);
+}
+
+function collectionMessage(c){
+  if(!c.amountIsFinal){
+    return `שלום ${c.name}, תזכורת מא.מ.ן מיזוג אוויר: קיימת יתרה פתוחה בחשבונך. הסכום עדיין בבדיקה עקב עבודות שטרם תומחרו. נשמח להסדיר ולעדכן את החשבון. תודה.`;
+  }
+  return `שלום ${c.name}, תזכורת מא.מ.ן מיזוג אוויר: קיימת יתרה לתשלום בסך ${money(c.amount)}. נשמח להסדרת התשלום. תודה.`;
+}
+
+async function loadCollections(){
+  if(!COLLECTION_OWNER_TOKEN){
+    document.getElementById('collectionLoginBox').style.display = 'flex';
+    document.getElementById('collectionProtected').style.display = 'none';
+    return;
+  }
+  const list = document.getElementById('collectionList');
+  list.innerHTML = `<div class="loading">טוען נתוני גבייה...</div>`;
+  try{
+    const res = await fetch(API_URL + '?action=collections&ownerToken=' + encodeURIComponent(COLLECTION_OWNER_TOKEN), {cache:'no-store'});
+    const result = await res.json();
+    if(!result.success){
+      if(result.error && result.error.includes('כניסת')){
+        COLLECTION_OWNER_TOKEN=''; sessionStorage.removeItem('collectionOwnerToken');
+        document.getElementById('collectionLoginBox').style.display='flex';
+        document.getElementById('collectionProtected').style.display='none';
+      }
+      throw new Error(result.error || 'שגיאה');
+    }
+    document.getElementById('collectionLoginBox').style.display = 'none';
+    document.getElementById('collectionProtected').style.display = 'block';
+    COLLECTIONS = result.customers || [];
+    renderCollectionSummary(result.summary || {});
+    renderCollections();
+  }catch(err){
+    list.innerHTML = `<div class="empty">לא ניתן לטעון את דוח הגבייה.</div>`;
+  }
+}
+
+function renderCollectionSummary(s){
+  document.getElementById('collectionSummary').innerHTML = `
+    <div class="collection-stat"><span>לקוחות במעקב</span><b>${Number(s.count)||0}</b></div>
+    <div class="collection-stat"><span>יתרה סופית מוכנה לגבייה</span><b>${money(s.totalFinal)}</b></div>
+    <div class="collection-stat"><span>דורשים תמחור</span><b>${Number(s.needsPricing)||0}</b></div>`;
+}
+
+function filteredCollections(){
+  const q = normalizeName(document.getElementById('collectionSearch').value).toLowerCase();
+  const filter = document.getElementById('collectionFilter').value;
+  return COLLECTIONS.filter(c => {
+    if(q && !normalizeName(c.name).toLowerCase().includes(q)) return false;
+    if(filter === 'ready' && !c.amountIsFinal) return false;
+    if(filter === 'unpriced' && c.amountIsFinal) return false;
+    if(filter === 'missing' && c.phone1 && c.email) return false;
+    return true;
+  });
+}
+
+function renderCollections(){
+  const list = document.getElementById('collectionList');
+  const rows = filteredCollections();
+  if(!rows.length){ list.innerHTML = `<div class="empty">לא נמצאו לקוחות מתאימים.</div>`; return; }
+  list.innerHTML = rows.map(c => {
+    const key = COLLECTIONS.indexOf(c);
+    const warning = c.amountIsFinal ? '' : `<div class="collection-warning">${c.unpricedCount} עבודות לפני תמחור — הסכום אינו סופי</div>`;
+    const last = c.lastReminderDate ? `${escapeHtml(c.lastReminderDate)} · ${escapeHtml(c.lastReminderChannel||'')}` : 'לא תועדה תזכורת';
+    return `<div class="collection-card ${c.amountIsFinal?'':'unpriced'}">
+      <div class="collection-head"><div><div class="collection-name">${escapeHtml(c.name)}</div>${warning}</div><div class="collection-amount">${money(c.amount)}</div></div>
+      <div class="collection-meta">מסמך אחרון: ${escapeHtml(c.lastDocumentNumber||'-')} · ${escapeHtml(c.lastDocumentDate||'-')}<br>תזכורת אחרונה: ${last}</div>
+      <div class="collection-contact">
+        <input id="collectionPhone-${key}" value="${escapeAttr(c.phone1||c.phone2||'')}" placeholder="טלפון / WhatsApp">
+        <input id="collectionEmail-${key}" value="${escapeAttr(c.email||'')}" placeholder="דואר אלקטרוני">
+        <button class="btn-save" onclick="saveCollectionContact(${key})">שמור פרטים</button>
+      </div>
+      <div class="collection-actions">
+        <button class="btn-whatsapp" onclick="openCollectionWhatsApp(${key})">פתח WhatsApp</button>
+        <button class="btn-email" onclick="openCollectionEmail(${key})">פתח מייל</button>
+        <button class="btn-phone" onclick="openCollectionPhone(${key})">התקשר</button>
+        <button class="btn-log" onclick="logCollectionReminder(${key},COLLECTION_PENDING_CHANNEL[${key}]||'שיחה/אחר')">תעד שנשלח</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function saveCollectionContact(index){
+  const c = COLLECTIONS[index];
+  const phone1 = document.getElementById(`collectionPhone-${index}`).value.trim();
+  const email = document.getElementById(`collectionEmail-${index}`).value.trim();
+  const result = await postCollectionAction({action:'updateCollectionContact',customerName:c.name,phone1,email});
+  if(result.success){ c.phone1=phone1; c.email=email; showToast('פרטי הקשר נשמרו ✓'); }
+  else showToast(result.error || 'שמירת הפרטים נכשלה');
+}
+
+function openCollectionWhatsApp(index){
+  const c = COLLECTIONS[index];
+  const phone = document.getElementById(`collectionPhone-${index}`).value.replace(/\D/g,'');
+  if(!phone){ showToast('חסר מספר טלפון'); return; }
+  const international = phone.startsWith('0') ? '972'+phone.slice(1) : phone;
+  COLLECTION_PENDING_CHANNEL[index] = 'WhatsApp';
+  window.open(`https://wa.me/${international}?text=${encodeURIComponent(collectionMessage(c))}`,'_blank');
+  showToast('לאחר השליחה לחץ „תעד שנשלח”');
+}
+
+function openCollectionEmail(index){
+  const c = COLLECTIONS[index];
+  const email = document.getElementById(`collectionEmail-${index}`).value.trim();
+  if(!email){ showToast('חסר דואר אלקטרוני'); return; }
+  COLLECTION_PENDING_CHANNEL[index] = 'מייל';
+  window.location.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent('תזכורת תשלום - א.מ.ן מיזוג אוויר')}&body=${encodeURIComponent(collectionMessage(c))}`;
+  showToast('לאחר השליחה לחץ „תעד שנשלח”');
+}
+
+function openCollectionPhone(index){
+  const phone = document.getElementById(`collectionPhone-${index}`).value.trim();
+  if(!phone){ showToast('חסר מספר טלפון'); return; }
+  COLLECTION_PENDING_CHANNEL[index] = 'שיחה';
+  window.location.href = `tel:${phone}`;
+}
+
+async function logCollectionReminder(index, channel){
+  const c = COLLECTIONS[index];
+  const phone = document.getElementById(`collectionPhone-${index}`).value.trim();
+  const email = document.getElementById(`collectionEmail-${index}`).value.trim();
+  const result = await postCollectionAction({action:'logCollectionReminder',customerName:c.name,channel,amount:c.amount,amountIsFinal:c.amountIsFinal,phone,email});
+  if(result.success){ c.lastReminderDate=result.date; c.lastReminderChannel=channel; showToast('התזכורת תועדה ✓'); }
+  else showToast(result.error || 'התיעוד נכשל');
+}
+
+async function postCollectionAction(payload){
+  try{
+    payload.ownerToken = COLLECTION_OWNER_TOKEN;
+    const res = await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
+    return await res.json();
+  }catch(err){ return {success:false,error:'שגיאת חיבור'}; }
+}
+
+async function loginCollections(){
+  const pin = document.getElementById('collectionOwnerPin').value.trim();
+  if(!pin){ showToast('יש להזין קוד כניסה'); return; }
+  const result = await postCollectionAction({action:'collectionLogin',pin});
+  if(!result.success){ showToast(result.error || 'הכניסה נכשלה'); return; }
+  COLLECTION_OWNER_TOKEN = result.token;
+  sessionStorage.setItem('collectionOwnerToken',result.token);
+  document.getElementById('collectionOwnerPin').value='';
+  loadCollections();
+}
+
+document.getElementById('collectionRefreshBtn').addEventListener('click',loadCollections);
+document.getElementById('collectionLoginBtn').addEventListener('click',loginCollections);
+document.getElementById('collectionOwnerPin').addEventListener('keydown',e=>{if(e.key==='Enter') loginCollections();});
+document.getElementById('collectionSearch').addEventListener('input',renderCollections);
+document.getElementById('collectionFilter').addEventListener('change',renderCollections);
+loadCollections();
 
 // רישום ה-Service Worker - נדרש כדי שהדפדפן יאפשר "הוספה למסך הבית" כאפליקציה אמיתית
 if('serviceWorker' in navigator){
