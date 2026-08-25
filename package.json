@@ -1,0 +1,16 @@
+{
+  "name": "amn-mizug-apps-script",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Google Apps Script synchronization for A.M.N-MIZUG",
+  "scripts": {
+    "gas:login": "clasp login",
+    "gas:pull": "clasp pull",
+    "gas:status": "clasp status",
+    "gas:push": "clasp push",
+    "gas:open": "clasp open"
+  },
+  "devDependencies": {
+    "@google/clasp": "^3.0.6"
+  }
+}
