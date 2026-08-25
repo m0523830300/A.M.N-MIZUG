@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>קריאות שירות - טכנאי</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#16323F;
+    --navy-deep:#0F252F;
+    --teal:#0E9C8E;
+    --teal-soft:#E4F5F2;
+    --amber:#D9820B;
+    --amber-soft:#FBF0DE;
+    --green:#178A4C;
+    --green-soft:#E5F5EC;
+    --bg:#F5F8F9;
+    --card:#FFFFFF;
+    --line:#E1E8EA;
+    --text:#152026;
+    --text-dim:#5C6E75;
+  }
+  *{box-sizing:border-box;}
+  html, body{
+    margin:0;
+    padding:0;
+    min-height:100%;
+    width:100%;
+  }
+  body{
+    font-family:'Heebo',sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    -webkit-font-smoothing:antialiased;
+    min-height:100dvh;
+  }
+  .wrap{max-width:640px;margin:0 auto;padding:0 0 60px;min-height:100dvh;}
+  #loginScreen{min-height:100dvh;display:flex;flex-direction:column;}
+  header{
+    background:linear-gradient(135deg,var(--navy),var(--navy-deep));
+    padding:28px 20px 22px;
+    color:#fff;
+    position:relative;
+    overflow:hidden;
+  }
+  header::after{
+    content:"";
+    position:absolute;left:-30px;top:-40px;
+    width:160px;height:160px;
+    border:2px solid rgba(255,255,255,.08);
+    border-radius:50%;
+  }
+  header h1{margin:0;font-size:21px;font-weight:800;}
+  header p{margin:6px 0 0;font-size:13px;color:#AFC6CC;font-weight:500;}
+  .stripe{height:4px;background:repeating-linear-gradient(90deg,var(--teal) 0 22px, transparent 22px 30px);opacity:.55;}
+
+  /* --- Login screen --- */
+  .login-wrap{
+    max-width:400px;width:100%;margin:0 auto;padding:0 20px;
+    flex:1;display:flex;align-items:center;justify-content:center;
+  }
+  .login-card{
+    background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:26px 22px;box-shadow:0 4px 18px rgba(15,37,47,.08);
+  }
+  .login-card h2{margin:0 0 6px;font-size:19px;font-weight:800;color:var(--navy);}
+  .login-card p{margin:0 0 20px;font-size:13px;color:var(--text-dim);}
+  .login-error{
+    background:var(--amber-soft);color:#7A5205;border:1px solid #F0D9AE;
+    border-radius:9px;padding:10px 12px;font-size:13px;margin-top:12px;display:none;
+  }
+  .login-error.show{display:block;}
+  button.login-submit{
+    width:100%;margin-top:18px;background:var(--navy);color:#fff;border:none;
+    padding:14px;border-radius:10px;font-family:'Heebo',sans-serif;font-size:15px;
+    font-weight:700;cursor:pointer;
+  }
+  button.login-submit:disabled{background:#9FB4B7;}
+  .name-pills{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:2px;}
+  .name-pill{
+    padding:10px 16px;border-radius:20px;border:1.5px solid var(--line);
+    background:#fff;color:var(--text);font-family:'Heebo',sans-serif;
+    font-size:14px;font-weight:600;cursor:pointer;
+  }
+  .name-pill.active{background:var(--navy);border-color:var(--navy);color:#fff;}
+
+  .session-bar{
+    display:flex;align-items:center;justify-content:space-between;
+    margin:-18px 20px 0;background:var(--card);border:1px solid var(--line);
+    border-radius:14px;padding:12px 16px;font-size:13.5px;font-weight:700;
+    color:var(--navy);box-shadow:0 4px 14px rgba(15,37,47,.06);position:relative;z-index:2;
+  }
+  .session-bar button{
+    background:none;border:1.5px solid var(--line);color:var(--text-dim);
+    padding:6px 12px;border-radius:20px;font-family:'Heebo',sans-serif;
+    font-size:12px;font-weight:600;cursor:pointer;
+  }
+  .session-bar button:hover{border-color:var(--amber);color:var(--amber);}
+
+  .dashboard{
+    margin:14px 20px 0;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:18px 20px;
+    display:flex;
+    align-items:center;
+    gap:18px;
+  }
+  .dashboard .count{
+    font-family:'JetBrains Mono',monospace;
+    font-size:38px;font-weight:500;color:var(--navy);line-height:1;
+  }
+  .dashboard .count-label{font-size:12px;color:var(--text-dim);margin-top:4px;font-weight:600;}
+  .dashboard .breakdown{
+    flex:1;display:flex;flex-direction:column;gap:6px;
+    border-right:1px solid var(--line);padding-right:16px;
+  }
+  .bd-row{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-dim);}
+  .bd-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .bd-dot.status-new{background:var(--navy);}
+  .bd-dot.status-progress{background:var(--teal);}
+  .bd-dot.status-followup{background:var(--amber);}
+  .bd-row b{color:var(--text);font-weight:700;}
+
+  .notify-banner{
+    margin:14px 20px 0;padding:12px 16px;background:var(--teal-soft);
+    border:1px solid #BFE6DF;border-radius:12px;font-size:13px;color:var(--navy);
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+  }
+  .notify-banner button{
+    background:var(--teal);color:#fff;border:none;padding:8px 14px;border-radius:20px;
+    font-family:'Heebo',sans-serif;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;
+  }
+  .notify-banner.granted{background:var(--green-soft);border-color:#BFE0C9;color:var(--green);}
+  .notify-banner.granted button{display:none;}
+
+  .tabs{display:flex;gap:8px;margin:18px 20px 0;}
+  .tab{
+    flex:1;text-align:center;padding:9px 0;border-radius:20px;
+    font-size:13px;font-weight:700;cursor:pointer;
+    border:1.5px solid var(--line);color:var(--text-dim);background:#fff;
+  }
+  .tab.active{background:var(--navy);border-color:var(--navy);color:#fff;}
+
+  .toolbar{display:flex;justify-content:flex-end;margin:14px 20px 6px;}
+  .refresh{
+    background:none;border:1.5px solid var(--line);color:var(--text-dim);
+    font-family:'Heebo',sans-serif;font-size:13px;font-weight:600;
+    padding:7px 12px;border-radius:20px;cursor:pointer;
+    display:flex;align-items:center;gap:6px;
+  }
+  .refresh:hover{border-color:var(--teal);color:var(--teal);}
+  .refresh svg{width:14px;height:14px;}
+
+  .list{margin:0 20px;display:flex;flex-direction:column;gap:10px;}
+  .call{
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:14px 16px;position:relative;padding-right:20px;cursor:pointer;
+    transition:box-shadow .15s;
+  }
+  .call:active{box-shadow:0 0 0 2px var(--teal) inset;}
+  .call::before{content:"";position:absolute;right:0;top:0;bottom:0;width:5px;}
+  .call.status-new::before{background:var(--navy);}
+  .call.status-progress::before{background:var(--teal);}
+  .call.status-followup::before{background:var(--amber);}
+  .call.status-done::before{background:var(--green);}
+
+  .call-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+  .call-name{font-weight:700;font-size:15px;}
+  .badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;}
+  .badge.status-new{background:#EAF0F2;color:var(--navy);}
+  .badge.status-progress{background:var(--teal-soft);color:var(--teal);}
+  .badge.status-followup{background:var(--amber-soft);color:var(--amber);}
+  .badge.status-done{background:var(--green-soft);color:var(--green);}
+  .call-meta{font-size:13px;color:var(--text-dim);margin-top:4px;line-height:1.6;}
+  .call-meta b{color:var(--text);font-weight:600;}
+
+  .empty, .loading{margin:30px 20px;text-align:center;color:var(--text-dim);font-size:14px;}
+  .config{
+    margin:20px;padding:16px;background:var(--amber-soft);
+    border:1px solid #F0D9AE;border-radius:12px;font-size:13px;color:#7A5205;line-height:1.7;
+  }
+  .config code{background:#fff;padding:1px 5px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px;}
+
+  /* Detail panel */
+  .overlay{
+    position:fixed;inset:0;background:rgba(15,37,47,.45);
+    display:none;align-items:flex-end;justify-content:center;z-index:50;
+  }
+  .overlay.show{display:flex;}
+  .sheet{
+    background:#fff;width:100%;max-width:640px;border-radius:18px 18px 0 0;
+    padding:22px 20px 26px;max-height:88vh;overflow-y:auto;
+  }
+  .sheet h2{margin:0 0 4px;font-size:18px;font-weight:800;}
+  .sheet .sub{font-size:13px;color:var(--text-dim);margin-bottom:16px;}
+  .detail-row{font-size:14px;margin-bottom:8px;line-height:1.6;}
+  .detail-row b{color:var(--text-dim);font-weight:600;display:inline-block;min-width:70px;}
+  .detail-row a{color:var(--teal);font-weight:600;text-decoration:none;}
+  hr.sep{border:none;border-top:1px dashed var(--line);margin:16px 0;}
+  label{display:block;font-size:13px;font-weight:600;color:var(--text-dim);margin:12px 0 6px;}
+  input[type="number"], input[type="text"], input[type="tel"], select{
+    width:100%;font-family:'Heebo',sans-serif;font-size:15px;padding:11px 12px;
+    border:1.5px solid var(--line);border-radius:9px;background:#FBFCFD;color:var(--text);
+  }
+  input:focus, select:focus{outline:none;border-color:var(--teal);background:#fff;}
+  textarea{
+    width:100%;font-family:'Heebo',sans-serif;font-size:15px;padding:11px 12px;
+    border:1.5px solid var(--line);border-radius:9px;background:#FBFCFD;color:var(--text);
+    min-height:80px;resize:vertical;
+  }
+  textarea:focus{outline:none;border-color:var(--teal);background:#fff;}
+  .toggle-group{display:flex;gap:10px;margin-top:6px;}
+  .toggle{
+    flex:1;text-align:center;padding:11px 0;border-radius:9px;
+    border:1.5px solid var(--line);font-weight:700;font-size:14px;cursor:pointer;color:var(--text-dim);
+  }
+  .toggle.yes.active{background:var(--amber-soft);border-color:var(--amber);color:var(--amber);}
+  .toggle.no.active{background:var(--green-soft);border-color:var(--green);color:var(--green);}
+  .checkbox-row{
+    display:flex;align-items:center;gap:9px;font-size:14px;font-weight:600;
+    color:var(--text-dim);margin-top:16px;cursor:pointer;
+  }
+  .checkbox-row input{width:auto;accent-color:var(--teal);transform:scale(1.2);cursor:pointer;}
+  .price-grid{display:flex;gap:10px;}
+  .price-grid > div{flex:1;}
+  .sheet-actions{display:flex;gap:10px;margin-top:20px;}
+  button.save{
+    flex:1;background:var(--teal);color:#fff;border:none;padding:14px;
+    border-radius:10px;font-family:'Heebo',sans-serif;font-size:15px;font-weight:700;cursor:pointer;
+  }
+  button.save:disabled{background:#9FB4B7;}
+  button.close{
+    background:none;border:1.5px solid var(--line);color:var(--text-dim);
+    padding:14px 18px;border-radius:10px;font-family:'Heebo',sans-serif;font-size:15px;font-weight:600;cursor:pointer;
+  }
+  .toast{
+    position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+    background:var(--navy-deep);color:#fff;padding:11px 20px;border-radius:30px;
+    font-size:13px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s, bottom .2s;z-index:60;
+  }
+  .toast.show{opacity:1;bottom:30px;}
+
+  /* --- Product bank / additions --- */
+  .item-search-wrap{position:relative;}
+  .item-results{
+    position:absolute;top:calc(100% + 4px);right:0;left:0;
+    background:#fff;border:1.5px solid var(--line);border-radius:10px;
+    max-height:210px;overflow-y:auto;box-shadow:0 6px 18px rgba(15,37,47,.12);
+    z-index:10;display:none;
+  }
+  .item-results.show{display:block;}
+  .item-result{
+    padding:11px 14px;font-size:13.5px;cursor:pointer;border-bottom:1px solid var(--line);
+    display:flex;justify-content:space-between;gap:10px;
+  }
+  .item-result:last-child{border-bottom:none;}
+  .item-result:hover{background:var(--teal-soft);}
+  .item-result .ir-price{color:var(--text-dim);font-size:12px;white-space:nowrap;}
+  .item-results .no-match{padding:11px 14px;font-size:13px;color:var(--text-dim);}
+
+  .chosen-list{display:flex;flex-direction:column;gap:6px;margin-top:8px;}
+  .chosen-row{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    background:var(--teal-soft);border-radius:9px;padding:9px 12px;font-size:13px;
+  }
+  .chosen-row .cr-name{font-weight:700;color:var(--navy);}
+  .chosen-row .cr-price{color:var(--text-dim);font-size:12px;white-space:nowrap;}
+  .chosen-row .cr-remove{
+    background:none;border:none;color:#C0392B;font-size:16px;font-weight:700;
+    cursor:pointer;line-height:1;padding:0 4px;
+  }
+  .addition-row{display:flex;gap:8px;margin-top:6px;}
+  .addition-row input:first-child{flex:2;}
+  .addition-row input:nth-child(2){flex:1;}
+  .addition-row button{
+    background:var(--navy);color:#fff;border:none;padding:0 16px;border-radius:9px;
+    font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;
+  }
+  .addition-row button:hover{background:var(--navy-deep);}
+  .calc-note{font-size:12px;color:var(--text-dim);margin-top:6px;line-height:1.6;}
+</style>
+</head>
+<body>
+
+<!-- ===================== LOGIN SCREEN ===================== -->
+<div id="loginScreen">
+  <header>
+    <h1>קריאות שירות</h1>
+    <p>כניסת טכנאי</p>
+  </header>
+  <div class="stripe"></div>
+  <div class="login-wrap">
+    <div class="login-card">
+      <h2>כניסה</h2>
+      <p>בחר את שמך והזן את הטלפון שלך כדי להיכנס</p>
+      <label>שם</label>
+      <div class="name-pills" id="loginNamePills"></div>
+      <label for="loginPhone">טלפון</label>
+      <input type="tel" id="loginPhone" placeholder="050-1234567">
+      <button class="login-submit" id="loginBtn">כניסה</button>
+      <div class="login-error" id="loginError"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MAIN APP (shown after login) ===================== -->
+<div class="wrap" id="appScreen" style="display:none;">
+  <header>
+    <h1>קריאות שירות</h1>
+    <p>מסך טכנאי — צפייה ועדכון קריאות</p>
+  </header>
+  <div class="stripe"></div>
+
+  <div id="configBox"></div>
+
+  <div class="session-bar">
+    <span id="sessionName"></span>
+    <button id="logoutBtn">התנתק</button>
+  </div>
+
+  <div class="dashboard">
+    <div>
+      <div class="count" id="openCount">–</div>
+      <div class="count-label">קריאות פתוחות</div>
+    </div>
+    <div class="breakdown">
+      <div class="bd-row"><span class="bd-dot status-new"></span>חדשות: <b id="cNew">–</b></div>
+      <div class="bd-row"><span class="bd-dot status-progress"></span>בטיפול: <b id="cProgress">–</b></div>
+      <div class="bd-row"><span class="bd-dot status-followup"></span>ממתינות להמשך: <b id="cFollowup">–</b></div>
+    </div>
+  </div>
+
+  <div class="notify-banner" id="notifyBanner">
+    <span id="notifyText">רוצה לקבל התרעה כשנכנסת קריאה חדשה?</span>
+    <button id="notifyBtn">הפעל התרעות</button>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-filter="open">פתוחות</div>
+    <div class="tab" data-filter="all">הכל</div>
+  </div>
+  <div class="toolbar">
+    <button class="refresh" id="refreshBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-3-6.7"/><path d="M21 4v6h-6"/></svg>
+      רענון
+    </button>
+  </div>
+  <div id="list" class="list"></div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <h2 id="dName"></h2>
+    <div class="sub" id="dIssue"></div>
+    <div class="detail-row"><b>כתובת:</b> <span id="dAddress"></span></div>
+    <div class="detail-row"><b>טלפון:</b> <a id="dPhone" href="#"></a></div>
+    <div class="detail-row" id="dNotesRow"><b>הערות:</b> <span id="dNotes"></span></div>
+    <hr class="sep">
+
+    <label>משויך לטכנאי (העברה)</label>
+    <div class="name-pills" id="assignedPills"></div>
+
+    <label for="workDone">מה בוצע</label>
+    <textarea id="workDone" placeholder="תאר את הטיפול שבוצע..."></textarea>
+
+    <label>נדרש המשך טיפול?</label>
+    <div class="toggle-group" id="followupToggleGroup">
+      <div class="toggle yes" data-val="כן">כן</div>
+      <div class="toggle no active" data-val="לא">לא</div>
+    </div>
+
+    <hr class="sep">
+
+    <label for="itemSearch">פריטי טיפול (בנק מוצרים)</label>
+    <div class="item-search-wrap">
+      <input type="text" id="itemSearch" placeholder="הקלד חלק מהשם... לדוגמה: גז, נזג, ניקוי">
+      <div class="item-results" id="itemResults"></div>
+    </div>
+    <div class="chosen-list" id="chosenItems"></div>
+
+    <label>תוספת (סיבה + סכום חופשי)</label>
+    <div class="addition-row">
+      <input type="text" id="addReason" placeholder="סיבה, לדוגמה: גישה קשה">
+      <input type="number" id="addAmount" placeholder="סכום ₪">
+      <button type="button" id="addAdditionBtn">הוסף</button>
+    </div>
+    <div class="chosen-list" id="chosenAdditions"></div>
+
+    <hr class="sep">
+
+    <div class="price-grid">
+      <div>
+        <label for="techPrice">המחיר שאתה מבקש (₪)</label>
+        <input type="number" id="techPrice" placeholder="לדוגמה: 200">
+      </div>
+      <div>
+        <label for="customerPrice">מחיר ללקוח (₪)</label>
+        <input type="number" id="customerPrice" placeholder="לדוגמה: 300">
+      </div>
+    </div>
+    <div class="calc-note" id="calcNote"></div>
+
+    <label>המחיר שלך כולל מע"מ?</label>
+    <div class="toggle-group" id="vatToggleGroup">
+      <div class="toggle yes" data-val="כן">כולל</div>
+      <div class="toggle no active" data-val="לא">לא כולל</div>
+    </div>
+
+    <label class="checkbox-row">
+      <input type="checkbox" id="toldCustomer"> נאמר ללקוח המחיר
+    </label>
+
+    <div class="sheet-actions">
+      <button class="close" id="closeBtn">סגור</button>
+      <button class="save" id="saveBtn">שמור עדכון</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// הדבק כאן את כתובת ה-URL של Google Apps Script שלך אחרי הפריסה
+const API_URL = "https://script.google.com/macros/s/AKfycbw0fAfYyK9gfViAaVFs0G1HPNguFjdAU4bDt6HCIs_LuOzKuu8lKIM0mLP48gIfeZ-Kwg/exec";
+// ============================================================
+
+let TECHNICIANS = [];
+let myName = null; // logged-in technician's name
+let allCalls = [];
+let currentFilter = 'open';
+let activeId = null;
+let followUpVal = 'לא';
+let vatVal = 'לא';
+let knownIds = null;
+
+let PRICE_LIST = []; // [{name, customerPrice, techPrice}]
+let chosenItems = [];       // [{name, customerPrice, techPrice}]
+let chosenAdditions = [];  // [{reason, amount}]
+
+const loginScreen = document.getElementById('loginScreen');
+const appScreen = document.getElementById('appScreen');
+const loginNamePills = document.getElementById('loginNamePills');
+const loginPhone = document.getElementById('loginPhone');
+const loginBtn = document.getElementById('loginBtn');
+const loginError = document.getElementById('loginError');
+const sessionName = document.getElementById('sessionName');
+let selectedLoginName = '';
+
+const listEl = document.getElementById('list');
+const configBox = document.getElementById('configBox');
+const toast = document.getElementById('toast');
+const overlay = document.getElementById('overlay');
+const notifyBanner = document.getElementById('notifyBanner');
+const notifyText = document.getElementById('notifyText');
+const notifyBtn = document.getElementById('notifyBtn');
+const assignedPills = document.getElementById('assignedPills');
+let assignedTechValue = '';
+
+function isConfigured(){ return API_URL && !API_URL.includes('PASTE_YOUR'); }
+if(!isConfigured()){
+  configBox.innerHTML = `<div class="config">⚠️ האפליקציה עדיין לא מחוברת לגיליון. יש להדביק את כתובת ה-Apps Script בשורה <code>API_URL</code> בקוד (בתחילת תגית ה-script).</div>`;
+}
+
+function showToast(msg){
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(()=>toast.classList.remove('show'), 2400);
+}
+
+// --- Load technician list for the login pills -----------------------
+async function loadTechnicianOptions(){
+  if(!isConfigured()) return;
+  try{
+    const res = await fetch(API_URL + '?action=technicians');
+    TECHNICIANS = await res.json();
+  }catch(err){
+    TECHNICIANS = [];
+  }
+  if(!TECHNICIANS.length){
+    loginNamePills.innerHTML = `<span style="font-size:13px;color:var(--text-dim);">אין עדיין טכנאים רשומים</span>`;
+  }else{
+    loginNamePills.innerHTML = TECHNICIANS.map(t =>
+      `<button type="button" class="name-pill" data-name="${escapeAttr(t)}">${escapeHtml(t)}</button>`
+    ).join('');
+    loginNamePills.querySelectorAll('.name-pill').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        selectedLoginName = btn.dataset.name;
+        loginNamePills.querySelectorAll('.name-pill').forEach(b=> b.classList.toggle('active', b === btn));
+      });
+    });
+  }
+  assignedPills.innerHTML = [`<button type="button" class="name-pill" data-name="">לא משויך</button>`]
+    .concat(TECHNICIANS.map(t => `<button type="button" class="name-pill" data-name="${escapeAttr(t)}">${escapeHtml(t)}</button>`))
+    .join('');
+  assignedPills.querySelectorAll('.name-pill').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      assignedTechValue = btn.dataset.name;
+      assignedPills.querySelectorAll('.name-pill').forEach(b=> b.classList.toggle('active', b === btn));
+    });
+  });
+}
+
+async function loadPriceList(){
+  if(!isConfigured()) return;
+  try{
+    const res = await fetch(API_URL + '?action=priceList');
+    PRICE_LIST = await res.json();
+  }catch(err){
+    PRICE_LIST = [];
+  }
+}
+
+// --- Login / session ------------------------------------------------
+loginBtn.addEventListener('click', async ()=>{
+  const name = selectedLoginName;
+  const phone = loginPhone.value.trim();
+  loginError.classList.remove('show');
+  if(!name || !phone){
+    loginError.textContent = 'יש לבחור שם ולהזין טלפון';
+    loginError.classList.add('show');
+    return;
+  }
+  loginBtn.disabled = true;
+  loginBtn.textContent = 'בודק...';
+  try{
+    const res = await fetch(API_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action:'login', name, phone })
+    });
+    const result = await res.json();
+    if(result.success){
+      localStorage.setItem('techAuth', JSON.stringify({ name, phone }));
+      enterApp(name);
+    }else{
+      loginError.textContent = result.error || 'שם או טלפון שגויים';
+      loginError.classList.add('show');
+    }
+  }catch(err){
+    loginError.textContent = 'שגיאת חיבור, נסה שוב';
+    loginError.classList.add('show');
+  }finally{
+    loginBtn.disabled = false;
+    loginBtn.textContent = 'כניסה';
+  }
+});
+
+document.getElementById('logoutBtn').addEventListener('click', ()=>{
+  localStorage.removeItem('techAuth');
+  myName = null;
+  appScreen.style.display = 'none';
+  loginScreen.style.display = '';
+  loginPhone.value = '';
+});
+
+function enterApp(name){
+  myName = name;
+  sessionName.textContent = `מחובר כ${name}`;
+  loginScreen.style.display = 'none';
+  appScreen.style.display = '';
+  loadCalls(true);
+  if(isConfigured()){
+    setInterval(()=> loadCalls(false), 25000);
+  }
+}
+
+// --- Notifications -------------------------------------------------
+function refreshNotifyBanner(){
+  if(!('Notification' in window)){
+    notifyBanner.style.display = 'none';
+    return;
+  }
+  if(Notification.permission === 'granted'){
+    notifyBanner.classList.add('granted');
+    notifyText.textContent = 'התרעות פעילות — תקבל הודעה כשנכנסת קריאה חדשה 🔔';
+  }else if(Notification.permission === 'denied'){
+    notifyBanner.classList.remove('granted');
+    notifyText.textContent = 'התרעות חסומות בדפדפן. אפשר להפעיל בהגדרות האתר.';
+    notifyBtn.style.display = 'none';
+  }else{
+    notifyBanner.classList.remove('granted');
+    notifyText.textContent = 'רוצה לקבל התרעה כשנכנסת קריאה חדשה?';
+  }
+}
+notifyBtn.addEventListener('click', async ()=>{
+  if(!('Notification' in window)) return;
+  await Notification.requestPermission();
+  refreshNotifyBanner();
+});
+refreshNotifyBanner();
+
+function beep(){
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.type = 'sine';
+    o.frequency.value = 880;
+    g.gain.setValueAtTime(0.15, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+    o.start();
+    o.stop(ctx.currentTime + 0.5);
+  }catch(e){}
+}
+
+function notifyNewCalls(newOnes){
+  if(!newOnes.length) return;
+  beep();
+  if(navigator.vibrate) navigator.vibrate([120,60,120]);
+  const first = newOnes[0];
+  const title = newOnes.length === 1
+    ? `קריאה חדשה: ${first['שם לקוח']||''}`
+    : `${newOnes.length} קריאות חדשות`;
+  const body = newOnes.length === 1
+    ? `${first['כתובת']||''} — ${first['סוג תקלה']||''}`
+    : newOnes.map(c=>c['שם לקוח']).join(', ');
+
+  if('Notification' in window && Notification.permission === 'granted'){
+    try{ new Notification(title, {body}); }catch(e){}
+  }
+  showToast(newOnes.length === 1 ? `📩 קריאה חדשה מ${first['שם לקוח']||''}` : `📩 ${newOnes.length} קריאות חדשות`);
+}
+
+function statusClass(status){
+  if(status === 'הושלם') return 'status-done';
+  if(status === 'ממתין להמשך טיפול') return 'status-followup';
+  if(status === 'בטיפול') return 'status-progress';
+  return 'status-new';
+}
+
+async function loadCalls(showSpinner){
+  if(!isConfigured() || !myName) return;
+  if(showSpinner) listEl.innerHTML = `<div class="loading">טוען קריאות...</div>`;
+  try{
+    const res = await fetch(API_URL);
+    const raw = (await res.json()).reverse();
+    // מציג רק את הקריאות המשויכות לטכנאי המחובר — אין גישה לקריאות של טכנאים אחרים
+    allCalls = raw.filter(c => normalizeName(c['טכנאי משויך']) === normalizeName(myName));
+
+    const currentIds = new Set(allCalls.map(c => String(c['מזהה'])));
+    if(knownIds === null){
+      knownIds = currentIds;
+    }else{
+      const newOnes = allCalls.filter(c => !knownIds.has(String(c['מזהה'])));
+      knownIds = currentIds;
+      if(newOnes.length) notifyNewCalls(newOnes);
+    }
+
+    render();
+  }catch(err){
+    listEl.innerHTML = `<div class="empty">שגיאה בטעינת הנתונים. בדוק את החיבור לגיליון.</div>`;
+  }
+}
+
+function updateDashboard(){
+  const open = allCalls.filter(c => c['סטטוס'] !== 'הושלם');
+  document.getElementById('openCount').textContent = open.length;
+  document.getElementById('cNew').textContent = allCalls.filter(c => statusClass(c['סטטוס']) === 'status-new').length;
+  document.getElementById('cProgress').textContent = allCalls.filter(c => statusClass(c['סטטוס']) === 'status-progress').length;
+  document.getElementById('cFollowup').textContent = allCalls.filter(c => statusClass(c['סטטוס']) === 'status-followup').length;
+}
+
+function render(){
+  updateDashboard();
+  let calls = allCalls;
+  if(currentFilter === 'open'){
+    calls = calls.filter(c => c['סטטוס'] !== 'הושלם');
+  }
+  if(!calls.length){
+    listEl.innerHTML = `<div class="empty">אין קריאות להצגה.</div>`;
+    return;
+  }
+  listEl.innerHTML = calls.map(c=>{
+    const sc = statusClass(c['סטטוס']);
+    return `
+      <div class="call ${sc}" data-id="${escapeAttr(c['מזהה'])}">
+        <div class="call-top">
+          <div class="call-name">${escapeHtml(c['שם לקוח']||'')}</div>
+          <div class="badge ${sc}">${escapeHtml(c['סטטוס']||'חדש')}</div>
+        </div>
+        <div class="call-meta">
+          <div><b>כתובת:</b> ${escapeHtml(c['כתובת']||'')}</div>
+          <div><b>תקלה:</b> ${escapeHtml(c['סוג תקלה']||'')}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  listEl.querySelectorAll('.call').forEach(el=>{
+    el.addEventListener('click', ()=> openDetail(el.dataset.id));
+  });
+}
+
+function normalizeName(str){
+  return String(str||'')
+    .replace(/[\u200B\u200C\u200D\u200E\u200F\u202A-\u202E\uFEFF]/g,'')
+    .trim();
+}
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = String(str);
+  return d.innerHTML;
+}
+function escapeAttr(str){ return escapeHtml(str).replace(/"/g,'&quot;'); }
+
+function openDetail(id){
+  const c = allCalls.find(x => String(x['מזהה']) === String(id));
+  if(!c) return;
+  activeId = id;
+  document.getElementById('dName').textContent = c['שם לקוח']||'';
+  document.getElementById('dIssue').textContent = c['סוג תקלה']||'';
+  document.getElementById('dAddress').textContent = c['כתובת']||'';
+  const phoneEl = document.getElementById('dPhone');
+  phoneEl.textContent = c['טלפון']||'';
+  phoneEl.href = 'tel:' + (c['טלפון']||'');
+  const notesRow = document.getElementById('dNotesRow');
+  if(c['הערות פתיחה']){
+    notesRow.style.display='';
+    document.getElementById('dNotes').textContent = c['הערות פתיחה'];
+  }else{
+    notesRow.style.display='none';
+  }
+
+  assignedTechValue = normalizeName(c['טכנאי משויך']) || '';
+  assignedPills.querySelectorAll('.name-pill').forEach(b=>{
+    b.classList.toggle('active', normalizeName(b.dataset.name) === assignedTechValue);
+  });
+  document.getElementById('workDone').value = c['מה בוצע'] || '';
+  document.getElementById('techPrice').value = c['מחיר טכנאי'] || '';
+  document.getElementById('customerPrice').value = c['מחיר ללקוח'] || '';
+  document.getElementById('toldCustomer').checked = c['נאמר ללקוח'] === 'כן';
+
+  followUpVal = c['נדרש המשך טיפול'] === 'כן' ? 'כן' : 'לא';
+  vatVal = c['כולל מעמ טכנאי'] === 'כן' ? 'כן' : 'לא';
+  updateToggleUI();
+
+  // שחזור פריטים ותוספות שנבחרו בעריכה קודמת (אם יש)
+  chosenItems = [];
+  chosenAdditions = [];
+  const rawJson = c['נתוני חיוב JSON'];
+  if(rawJson){
+    try{
+      const parsed = JSON.parse(rawJson);
+      chosenItems = Array.isArray(parsed.items) ? parsed.items : [];
+      chosenAdditions = Array.isArray(parsed.additions) ? parsed.additions : [];
+    }catch(err){ /* ignore malformed data */ }
+  }
+  document.getElementById('itemSearch').value = '';
+  hideItemResults();
+  renderChosenItems();
+  renderChosenAdditions();
+
+  overlay.classList.add('show');
+}
+
+function updateToggleUI(){
+  document.querySelectorAll('#followupToggleGroup .toggle').forEach(t=>{
+    t.classList.toggle('active', t.dataset.val === followUpVal);
+  });
+  document.querySelectorAll('#vatToggleGroup .toggle').forEach(t=>{
+    t.classList.toggle('active', t.dataset.val === vatVal);
+  });
+}
+
+// ============================================================
+// בנק מוצרים - חיפוש חופשי (לא תלוי סדר) + תוספות ידניות
+// ============================================================
+const itemSearchEl = document.getElementById('itemSearch');
+const itemResultsEl = document.getElementById('itemResults');
+
+function hideItemResults(){
+  itemResultsEl.classList.remove('show');
+  itemResultsEl.innerHTML = '';
+}
+
+function searchPriceList(query){
+  const tokens = query.trim().split(/\s+/).filter(Boolean);
+  if(!tokens.length) return [];
+  return PRICE_LIST.filter(item=>{
+    const name = item.name;
+    return tokens.every(tok => name.includes(tok));
+  }).slice(0, 8);
+}
+
+itemSearchEl.addEventListener('input', ()=>{
+  const q = itemSearchEl.value;
+  if(!q.trim()){ hideItemResults(); return; }
+  const matches = searchPriceList(q);
+  if(!matches.length){
+    itemResultsEl.innerHTML = `<div class="no-match">לא נמצא פריט מתאים בבנק</div>`;
+    itemResultsEl.classList.add('show');
+    return;
+  }
+  itemResultsEl.innerHTML = matches.map((m, i)=>{
+    const priceTxt = (m.techPrice !== null && m.techPrice !== undefined)
+      ? `${m.techPrice} ₪`
+      : 'מחיר משתנה';
+    return `<div class="item-result" data-idx="${i}"><span>${escapeHtml(m.name)}</span><span class="ir-price">${priceTxt}</span></div>`;
+  }).join('');
+  itemResultsEl.classList.add('show');
+  itemResultsEl.querySelectorAll('.item-result').forEach((el, i)=>{
+    el.addEventListener('click', ()=>{
+      addChosenItem(matches[i]);
+      itemSearchEl.value = '';
+      hideItemResults();
+    });
+  });
+});
+
+document.addEventListener('click', (e)=>{
+  if(!itemSearchEl.contains(e.target) && !itemResultsEl.contains(e.target)){
+    hideItemResults();
+  }
+});
+
+function addChosenItem(item){
+  chosenItems.push({ name: item.name, customerPrice: item.customerPrice, techPrice: item.techPrice });
+  renderChosenItems();
+}
+
+function renderChosenItems(){
+  const container = document.getElementById('chosenItems');
+  if(!chosenItems.length){ container.innerHTML = ''; recalcTotals(); return; }
+  container.innerHTML = chosenItems.map((it, i)=>{
+    const priceTxt = (it.techPrice !== null && it.techPrice !== undefined)
+      ? `טכנאי ${it.techPrice}₪ / לקוח ${it.customerPrice}₪`
+      : 'מחיר משתנה - הזן ידנית';
+    return `
+      <div class="chosen-row">
+        <span class="cr-name">${escapeHtml(it.name)}</span>
+        <span class="cr-price">${priceTxt}</span>
+        <button type="button" class="cr-remove" data-idx="${i}">✕</button>
+      </div>`;
+  }).join('');
+  container.querySelectorAll('.cr-remove').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      chosenItems.splice(Number(btn.dataset.idx), 1);
+      renderChosenItems();
+    });
+  });
+  recalcTotals();
+}
+
+document.getElementById('addAdditionBtn').addEventListener('click', ()=>{
+  const reason = document.getElementById('addReason').value.trim();
+  const amount = Number(document.getElementById('addAmount').value);
+  if(!reason || !amount){ showToast('צריך למלא סיבה וסכום לתוספת'); return; }
+  chosenAdditions.push({ reason, amount });
+  document.getElementById('addReason').value = '';
+  document.getElementById('addAmount').value = '';
+  renderChosenAdditions();
+});
+
+function renderChosenAdditions(){
+  const container = document.getElementById('chosenAdditions');
+  if(!chosenAdditions.length){ container.innerHTML = ''; recalcTotals(); return; }
+  container.innerHTML = chosenAdditions.map((a, i)=>`
+      <div class="chosen-row">
+        <span class="cr-name">${escapeHtml(a.reason)}</span>
+        <span class="cr-price">+${a.amount}₪</span>
+        <button type="button" class="cr-remove" data-idx="${i}">✕</button>
+      </div>`).join('');
+  container.querySelectorAll('.cr-remove').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      chosenAdditions.splice(Number(btn.dataset.idx), 1);
+      renderChosenAdditions();
+    });
+  });
+  recalcTotals();
+}
+
+function recalcTotals(){
+  const itemsTechSum = chosenItems.reduce((s,it)=> s + (Number(it.techPrice)||0), 0);
+  const itemsCustSum = chosenItems.reduce((s,it)=> s + (Number(it.customerPrice)||0), 0);
+  const addSum = chosenAdditions.reduce((s,a)=> s + (Number(a.amount)||0), 0);
+  const note = document.getElementById('calcNote');
+  if(!chosenItems.length && !chosenAdditions.length){
+    note.textContent = '';
+    return;
+  }
+  document.getElementById('techPrice').value = itemsTechSum + addSum;
+  document.getElementById('customerPrice').value = itemsCustSum + addSum;
+  note.textContent = 'המחירים חושבו אוטומטית מהפריטים והתוספות שנבחרו - אפשר לשנות ידנית אם צריך.';
+}
+
+function buildBillingBreakdown(){
+  const parts = chosenItems.map(it => `${it.name} (${it.techPrice ?? '?'}₪)`);
+  chosenAdditions.forEach(a => parts.push(`תוספת: ${a.reason} (+${a.amount}₪)`));
+  return parts.join(' + ');
+}
+
+document.querySelectorAll('#followupToggleGroup .toggle').forEach(t=>{
+  t.addEventListener('click', ()=>{
+    followUpVal = t.dataset.val;
+    updateToggleUI();
+  });
+});
+document.querySelectorAll('#vatToggleGroup .toggle').forEach(t=>{
+  t.addEventListener('click', ()=>{
+    vatVal = t.dataset.val;
+    updateToggleUI();
+  });
+});
+
+document.getElementById('closeBtn').addEventListener('click', ()=>{
+  overlay.classList.remove('show');
+});
+overlay.addEventListener('click', (e)=>{ if(e.target === overlay) overlay.classList.remove('show'); });
+
+document.getElementById('saveBtn').addEventListener('click', async ()=>{
+  if(!isConfigured()){ showToast('חבר קודם את הגיליון'); return; }
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.textContent = 'שומר...';
+
+  const workDone = document.getElementById('workDone').value;
+  const newStatus = followUpVal === 'כן' ? 'ממתין להמשך טיפול' : 'הושלם';
+
+  const payload = {
+    action: 'update',
+    id: activeId,
+    workDone,
+    followUpNeeded: followUpVal,
+    status: newStatus,
+    assignedTechnician: assignedTechValue,
+    techPrice: document.getElementById('techPrice').value,
+    techVat: vatVal,
+    customerPrice: document.getElementById('customerPrice').value,
+    toldCustomer: document.getElementById('toldCustomer').checked ? 'כן' : 'לא',
+    billingBreakdown: buildBillingBreakdown(),
+    billingItemsJson: JSON.stringify({ items: chosenItems, additions: chosenAdditions })
+  };
+
+  try{
+    await fetch(API_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify(payload)
+    });
+    showToast('העדכון נשמר ✓');
+    overlay.classList.remove('show');
+    loadCalls();
+  }catch(err){
+    showToast('שגיאה בשמירה, נסה שוב');
+  }finally{
+    btn.disabled = false;
+    btn.textContent = 'שמור עדכון';
+  }
+});
+
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    currentFilter = tab.dataset.filter;
+    render();
+  });
+});
+
+document.getElementById('refreshBtn').addEventListener('click', ()=> loadCalls(true));
+
+// --- Startup: try auto-login from saved session -------------------
+(async function init(){
+  await loadTechnicianOptions();
+  await loadPriceList();
+  const saved = localStorage.getItem('techAuth');
+  if(saved){
+    try{
+      const { name, phone } = JSON.parse(saved);
+      const res = await fetch(API_URL, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({ action:'login', name, phone })
+      });
+      const result = await res.json();
+      if(result.success){
+        enterApp(name);
+        return;
+      }else{
+        localStorage.removeItem('techAuth');
+      }
+    }catch(err){
+      localStorage.removeItem('techAuth');
+    }
+  }
+  loginScreen.style.display = '';
+  appScreen.style.display = 'none';
+})();
+</script>
+</body>
+</html>
