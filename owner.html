@@ -417,7 +417,7 @@
   .collection-warning{display:inline-block;margin-top:6px;padding:4px 8px;border-radius:7px;background:#F7D8D4;color:#982C23;font-size:12px;font-weight:700;}
   .collection-meta{margin-top:8px;color:var(--text-dim);font-size:12.5px;line-height:1.7;}
   .collection-contact{display:grid;grid-template-columns:1fr 1.3fr auto;gap:7px;margin-top:10px;}
-  .collection-contact input{margin:0;min-width:0;}
+  .collection-contact input,.collection-contact select{margin:0;min-width:0;}
   .collection-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;}
   .collection-actions button,.collection-contact button,.collection-login button{border:0;border-radius:8px;padding:9px 12px;font:700 12.5px 'Heebo',sans-serif;cursor:pointer;}
   .btn-whatsapp{background:#DCF8E8;color:#17663B;}.btn-email{background:#E7F0FD;color:#245A9C;}.btn-phone{background:#F0ECFF;color:#563A91;}.btn-log{background:var(--navy);color:#fff;}.btn-save{background:var(--accent);color:#fff;}
@@ -1484,11 +1484,15 @@ function renderCollections(){
     const key = COLLECTIONS.indexOf(c);
     const warning = c.amountIsFinal ? '' : `<div class="collection-warning">${c.unpricedCount} עבודות לפני תמחור — הסכום אינו סופי</div>`;
     const last = c.lastReminderDate ? `${escapeHtml(c.lastReminderDate)} · ${escapeHtml(c.lastReminderChannel||'')}` : 'לא תועדה תזכורת';
+    const phones = Array.isArray(c.phoneOptions) ? c.phoneOptions.filter(Boolean) : [c.phone1,c.phone2].filter(Boolean);
+    const phoneField = phones.length > 1
+      ? `<select id="collectionPhone-${key}">${phones.map((p,i)=>`<option value="${escapeAttr(p)}">${escapeHtml(p)}${i===0?' — ראשי':''}</option>`).join('')}</select>`
+      : `<input id="collectionPhone-${key}" value="${escapeAttr(phones[0]||'')}" placeholder="טלפון / WhatsApp">`;
     return `<div class="collection-card ${c.amountIsFinal?'':'unpriced'}">
       <div class="collection-head"><div><div class="collection-name">${escapeHtml(c.name)}</div>${warning}</div><div class="collection-amount">${money(c.amount)}</div></div>
       <div class="collection-meta">מסמך אחרון: ${escapeHtml(c.lastDocumentNumber||'-')} · ${escapeHtml(c.lastDocumentDate||'-')}<br>תזכורת אחרונה: ${last}</div>
       <div class="collection-contact">
-        <input id="collectionPhone-${key}" value="${escapeAttr(c.phone1||c.phone2||'')}" placeholder="טלפון / WhatsApp">
+        ${phoneField}
         <input id="collectionEmail-${key}" value="${escapeAttr(c.email||'')}" placeholder="דואר אלקטרוני">
         <button class="btn-save" onclick="saveCollectionContact(${key})">שמור פרטים</button>
       </div>
