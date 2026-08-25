@@ -75,6 +75,38 @@
     opacity:.55;
   }
 
+  .header-home-btn{
+    display:none;margin-top:14px;border:1px solid rgba(255,255,255,.35);
+    color:#fff;background:rgba(255,255,255,.12);padding:7px 14px;border-radius:20px;
+    font-family:'Heebo',sans-serif;font-size:12.5px;font-weight:700;cursor:pointer;
+    position:relative;z-index:1;
+  }
+  .header-home-btn:hover{background:rgba(255,255,255,.22);}
+  .app-view{display:none;}
+  .app-view.active{display:block;}
+  .home-screen{padding:24px 20px 10px;}
+  .home-intro{margin:0 0 16px;color:var(--text-dim);font-size:14px;}
+  .home-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+  .home-card{
+    min-height:132px;border:1px solid var(--line);border-radius:16px;background:var(--card);
+    padding:18px 15px;text-align:right;font-family:'Heebo',sans-serif;cursor:pointer;
+    box-shadow:0 2px 8px rgba(11,42,80,.05);transition:transform .12s,border-color .12s,box-shadow .12s;
+  }
+  .home-card:hover{border-color:#B7C9DB;box-shadow:0 5px 16px rgba(11,42,80,.10);}
+  .home-card:active{transform:scale(.98);}
+  .home-card.primary{background:linear-gradient(135deg,var(--navy),var(--navy-deep));color:#fff;border:0;}
+  .home-card.collection{border-right:5px solid var(--accent);}
+  .home-icon{display:block;font-size:28px;line-height:1;margin-bottom:13px;}
+  .home-title{display:block;font-size:17px;font-weight:800;}
+  .home-desc{display:block;margin-top:5px;font-size:12.5px;color:var(--text-dim);line-height:1.45;}
+  .home-card.primary .home-desc{color:#C9D8E6;}
+  .view-back-row{margin:18px 20px 0;}
+  .view-back-btn{
+    border:1px solid var(--line);background:#fff;color:var(--navy);border-radius:9px;
+    padding:8px 13px;font:700 13px 'Heebo',sans-serif;cursor:pointer;
+  }
+  @media(max-width:430px){.home-grid{grid-template-columns:1fr}.home-card{min-height:105px;}}
+
   .section-title{
     font-size:13px;font-weight:600;color:var(--text-dim);
     margin:26px 20px 10px;letter-spacing:.3px;
@@ -430,12 +462,44 @@
 <div class="wrap">
   <header>
     <h1>א.מ.ן מיזוג אוויר</h1>
-    <p>פתיחת קריאה חדשה למעקב הטכנאי</p>
+    <p id="headerSubtitle">מערכת ניהול</p>
     <a href="technician.html" class="switch-view-link">🔧 עבור למסך טכנאי</a>
+    <button type="button" class="header-home-btn" id="headerHomeBtn">חזרה למסך הראשי</button>
   </header>
   <div class="stripe"></div>
 
   <div id="configBox"></div>
+
+  <main class="app-view active" id="view-home">
+    <div class="home-screen">
+      <p class="home-intro">בחר את הפעולה הרצויה:</p>
+      <div class="home-grid">
+        <button type="button" class="home-card primary" data-open-view="new-call">
+          <span class="home-icon">＋</span><span class="home-title">עבודה חדשה</span>
+          <span class="home-desc">פתיחת קריאה או התקנה חדשה</span>
+        </button>
+        <button type="button" class="home-card" data-open-view="calls">
+          <span class="home-icon">▤</span><span class="home-title">עבודות קיימות</span>
+          <span class="home-desc">קריאות פתוחות וסגורות</span>
+        </button>
+        <button type="button" class="home-card collection" data-open-view="collection">
+          <span class="home-icon">₪</span><span class="home-title">גבייה</span>
+          <span class="home-desc">חייבים, תזכורות ופרטי קשר</span>
+        </button>
+        <button type="button" class="home-card" data-open-view="reports">
+          <span class="home-icon">▥</span><span class="home-title">דוחות</span>
+          <span class="home-desc">דוח חודשי לפי טכנאי</span>
+        </button>
+        <button type="button" class="home-card" data-open-view="technicians">
+          <span class="home-icon">⚙</span><span class="home-title">ניהול טכנאים</span>
+          <span class="home-desc">הוספה ועדכון פרטי טכנאים</span>
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <main class="app-view" id="view-new-call">
+  <div class="view-back-row"><button type="button" class="view-back-btn" data-open-view="home">חזרה למסך הראשי</button></div>
 
   <div class="section-title"><span class="n">01</span> קריאה חדשה</div>
   <form id="callForm">
@@ -498,7 +562,10 @@
 
     <button type="submit" class="submit" id="submitBtn">שלח קריאה לטכנאי</button>
   </form>
+  </main>
 
+  <main class="app-view" id="view-calls">
+  <div class="view-back-row"><button type="button" class="view-back-btn" data-open-view="home">חזרה למסך הראשי</button></div>
   <div class="section-title"><span class="n">02</span> קריאות שירות</div>
   <div class="tabs">
     <div class="tab active" data-filter="open">קריאות פתוחות</div>
@@ -512,7 +579,10 @@
     </button>
   </div>
   <div id="list" class="list"></div>
+  </main>
 
+  <main class="app-view" id="view-reports">
+  <div class="view-back-row"><button type="button" class="view-back-btn" data-open-view="home">חזרה למסך הראשי</button></div>
   <div class="section-title"><span class="n">03</span> דוח חודשי לפי טכנאי</div>
   <div class="report-box">
     <div class="report-controls">
@@ -531,7 +601,10 @@
       </button>
     </div>
   </div>
+  </main>
 
+  <main class="app-view" id="view-collection">
+  <div class="view-back-row"><button type="button" class="view-back-btn" data-open-view="home">חזרה למסך הראשי</button></div>
   <div class="section-title"><span class="n">04</span> מעקב גבייה</div>
   <div class="toolbar">
     <div></div>
@@ -554,7 +627,10 @@
     </div>
     <div id="collectionList" class="collection-list"></div>
   </div>
+  </main>
 
+  <main class="app-view" id="view-technicians">
+  <div class="view-back-row"><button type="button" class="view-back-btn" data-open-view="home">חזרה למסך הראשי</button></div>
   <div class="section-title"><span class="n">05</span> טכנאים</div>
   <div class="tech-manager">
     <div class="current-list" id="techChips"></div>
@@ -565,6 +641,7 @@
       <button type="button" id="addTechBtn">הוסף</button>
     </div>
   </div>
+  </main>
 </div>
 
 <div class="overlay" id="editOverlay">
@@ -1575,6 +1652,43 @@ document.getElementById('collectionOwnerPin').addEventListener('keydown',e=>{if(
 document.getElementById('collectionSearch').addEventListener('input',renderCollections);
 document.getElementById('collectionFilter').addEventListener('change',renderCollections);
 loadCollections();
+
+// ניווט בין מסכי הניהול. אפשר גם לפתוח ישירות, לדוגמה: owner.html?view=collection
+const OWNER_VIEWS = {
+  home: 'מערכת ניהול',
+  'new-call': 'פתיחת עבודה חדשה',
+  calls: 'עבודות קיימות',
+  collection: 'מעקב גבייה',
+  reports: 'דוחות',
+  technicians: 'ניהול טכנאים'
+};
+
+function openOwnerView(viewName, updateUrl=true){
+  const safeView = OWNER_VIEWS[viewName] ? viewName : 'home';
+  document.querySelectorAll('.app-view').forEach(view=>view.classList.remove('active'));
+  const selected = document.getElementById(`view-${safeView}`);
+  if(selected) selected.classList.add('active');
+  document.getElementById('headerSubtitle').textContent = OWNER_VIEWS[safeView];
+  document.getElementById('headerHomeBtn').style.display = safeView === 'home' ? 'none' : 'inline-block';
+
+  if(updateUrl){
+    const url = new URL(window.location.href);
+    if(safeView === 'home') url.searchParams.delete('view');
+    else url.searchParams.set('view',safeView);
+    history.pushState({ownerView:safeView},'',url);
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+document.querySelectorAll('[data-open-view]').forEach(button=>{
+  button.addEventListener('click',()=>openOwnerView(button.dataset.openView));
+});
+document.getElementById('headerHomeBtn').addEventListener('click',()=>openOwnerView('home'));
+window.addEventListener('popstate',()=>{
+  const view = new URLSearchParams(window.location.search).get('view') || 'home';
+  openOwnerView(view,false);
+});
+openOwnerView(new URLSearchParams(window.location.search).get('view') || 'home',false);
 
 // רישום ה-Service Worker - נדרש כדי שהדפדפן יאפשר "הוספה למסך הבית" כאפליקציה אמיתית
 if('serviceWorker' in navigator){
