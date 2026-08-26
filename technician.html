@@ -691,17 +691,23 @@ function notifyNewCalls(newOnes){
 }
 
 function statusClass(status){
-  if(status === 'הושלם') return 'status-done';
-  if(status === 'ממתין להמשך טיפול') return 'status-followup';
-  if(status === 'בטיפול') return 'status-progress';
+  const cleanStatus = normalizeName(status);
+  if(['הושלם','בוצע','הסתיים'].includes(cleanStatus)) return 'status-done';
+  if(cleanStatus === 'ממתין להמשך טיפול') return 'status-followup';
+  if(cleanStatus === 'בטיפול') return 'status-progress';
   return 'status-new';
+}
+
+function isCompletedStatus(status){
+  return statusClass(status) === 'status-done';
 }
 
 async function loadCalls(showSpinner){
   if(!isConfigured() || !myName) return;
   if(showSpinner) listEl.innerHTML = `<div class="loading">טוען קריאות...</div>`;
   try{
-    const res = await fetch(API_URL, { cache: 'no-store' });
+    const separator = API_URL.includes('?') ? '&' : '?';
+    const res = await fetch(`${API_URL}${separator}_=${Date.now()}`, { cache: 'no-store' });
     const raw = (await res.json()).reverse();
     // מציג רק את הקריאות המשויכות לטכנאי המחובר — אין גישה לקריאות של טכנאים אחרים
     allCalls = raw.filter(c => normalizeName(c['טכנאי משויך']) === normalizeName(myName));
@@ -722,7 +728,7 @@ async function loadCalls(showSpinner){
 }
 
 function updateDashboard(){
-  const open = allCalls.filter(c => c['סטטוס'] !== 'הושלם');
+  const open = allCalls.filter(c => !isCompletedStatus(c['סטטוס']));
   document.getElementById('openCount').textContent = open.length;
   document.getElementById('cNew').textContent = allCalls.filter(c => statusClass(c['סטטוס']) === 'status-new').length;
   document.getElementById('cProgress').textContent = allCalls.filter(c => statusClass(c['סטטוס']) === 'status-progress').length;
@@ -730,7 +736,7 @@ function updateDashboard(){
 }
 
 function getWaitLabel(openDateStr, status){
-  if(status === 'הושלם') return '';
+  if(isCompletedStatus(status)) return '';
   const opened = new Date(openDateStr);
   if(isNaN(opened.getTime())) return '';
   const diffDays = Math.floor((Date.now() - opened.getTime()) / 86400000);
@@ -750,7 +756,7 @@ function render(){
   updateDashboard();
   let calls = allCalls;
   if(currentFilter === 'open'){
-    calls = calls.filter(c => c['סטטוס'] !== 'הושלם');
+    calls = calls.filter(c => !isCompletedStatus(c['סטטוס']));
   }
   calls = [...calls].sort((a,b)=>priorityRank(b['רמת דחיפות'])-priorityRank(a['רמת דחיפות']));
   if(!calls.length){
@@ -1239,11 +1245,20 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
   };
 
   try{
-    await fetch(API_URL, {
+    const updateRes = await fetch(API_URL, {
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify(payload)
     });
+    const updateResult = await updateRes.json();
+    if(!updateResult.success) throw new Error(updateResult.error || 'העדכון לא נשמר');
+
+    const savedCall = allCalls.find(c => String(c['מזהה']) === String(activeId));
+    if(savedCall){
+      savedCall['סטטוס'] = newStatus;
+      savedCall['מה בוצע'] = workDone;
+      savedCall['נדרש המשך טיפול'] = followUpVal;
+    }
 
     let paymentSuffix = '';
     if(paidVal === 'כן'){
@@ -1268,7 +1283,8 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
 
     showToast('העדכון נשמר ✓' + paymentSuffix, paymentSuffix ? 6000 : 2400);
     overlay.classList.remove('show');
-    loadCalls();
+    render();
+    await loadCalls(false);
   }catch(err){
     showToast('שגיאה בשמירה, נסה שוב');
   }finally{
