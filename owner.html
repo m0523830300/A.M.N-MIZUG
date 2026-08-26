@@ -332,6 +332,16 @@
   .pill:hover{border-color:var(--accent);}
   .tech-pills{display:flex;flex-wrap:wrap;gap:8px;}
   .tech-pills .pill{padding:9px 15px;font-size:13.5px;}
+  .priority-pills{display:flex;gap:8px;flex-wrap:wrap;}
+  .priority-pill{border:1.5px solid var(--line);background:#fff;color:var(--text-dim);padding:9px 15px;border-radius:22px;font:700 13.5px 'Heebo',sans-serif;cursor:pointer;}
+  .priority-pill[data-priority="רגיל"].active{background:var(--navy);border-color:var(--navy);color:#fff;}
+  .priority-pill[data-priority="דחוף"].active{background:var(--amber);border-color:var(--amber);color:#fff;}
+  .priority-pill[data-priority="חירום"].active{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .priority-badge{display:inline-block;margin:0 0 8px;padding:4px 9px;border-radius:18px;font-size:12px;font-weight:800;}
+  .priority-badge.urgent{background:var(--amber-soft);color:#A65E00;}
+  .priority-badge.emergency{background:var(--accent);color:#fff;}
+  .call.priority-emergency{border-right:6px solid var(--accent);}
+  .call.priority-urgent{border-right:6px solid var(--amber);}
 
   .empty, .loading{
     margin:30px 20px;text-align:center;color:var(--text-dim);
@@ -554,6 +564,13 @@
     <label>שיוך לטכנאי</label>
     <div class="tech-pills" id="assignedPills"></div>
 
+    <label>רמת דחיפות</label>
+    <div class="priority-pills" id="priorityPills">
+      <button type="button" class="priority-pill active" data-priority="רגיל">רגיל</button>
+      <button type="button" class="priority-pill" data-priority="דחוף">דחוף</button>
+      <button type="button" class="priority-pill" data-priority="חירום">חירום</button>
+    </div>
+
     <label for="notes">הערות נוספות (לא חובה)</label>
     <div class="field-row">
       <textarea id="notes" placeholder="פרטים נוספים לטכנאי..."></textarea>
@@ -655,6 +672,12 @@
     <input id="editAddress" placeholder="כתובת">
     <label for="editIssueType">סוג התקלה</label>
     <input id="editIssueType" placeholder="סוג התקלה">
+    <label for="editPriority">רמת דחיפות</label>
+    <select id="editPriority">
+      <option value="רגיל">רגיל</option>
+      <option value="דחוף">דחוף</option>
+      <option value="חירום">חירום</option>
+    </select>
     <div class="edit-actions">
       <button type="button" id="editCancelBtn">ביטול</button>
       <button type="button" id="editSaveBtn">שמור שינויים</button>
@@ -678,6 +701,14 @@ const toast = document.getElementById('toast');
 const assignedPills = document.getElementById('assignedPills');
 const techChips = document.getElementById('techChips');
 let assignedTechValue = '';
+let priorityValue = 'רגיל';
+
+document.querySelectorAll('#priorityPills .priority-pill').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    priorityValue = btn.dataset.priority;
+    document.querySelectorAll('#priorityPills .priority-pill').forEach(b=>b.classList.toggle('active',b===btn));
+  });
+});
 let workTypeVal = 'תיקון';
 document.querySelectorAll('#workTypePills .pill').forEach(btn=>{
   btn.addEventListener('click', ()=>{
@@ -794,10 +825,18 @@ async function loadCalls(){
 }
 
 function applyFilterAndRender(){
-  const filtered = currentFilter === 'open'
+  const filtered = (currentFilter === 'open'
     ? allCalls.filter(c => c['סטטוס'] !== 'הושלם' && c['סטטוס'] !== 'בוטל')
-    : allCalls.filter(c => c['סטטוס'] === 'הושלם' || c['סטטוס'] === 'בוטל');
+    : allCalls.filter(c => c['סטטוס'] === 'הושלם' || c['סטטוס'] === 'בוטל'))
+    .sort((a,b)=>priorityRank(b['רמת דחיפות'])-priorityRank(a['רמת דחיפות']));
   renderList(filtered);
+}
+
+function priorityRank(priority){ return priority === 'חירום' ? 2 : (priority === 'דחוף' ? 1 : 0); }
+function priorityInfo(priority){
+  if(priority === 'חירום') return {card:'priority-emergency',badge:'<div class="priority-badge emergency">חירום — לטיפול ראשון</div>'};
+  if(priority === 'דחוף') return {card:'priority-urgent',badge:'<div class="priority-badge urgent">דחוף</div>'};
+  return {card:'',badge:''};
 }
 
 function getWaitLabel(openDateStr, status){
@@ -821,6 +860,7 @@ function renderList(calls){
     const workDone = c['מה בוצע'] ? `<div class="work-done"><b>מה בוצע:</b> ${escapeHtml(c['מה בוצע'])}</div>` : '';
     const id = c['מזהה']||'';
     const assignedTech = normalizeName(c['טכנאי משויך']||'');
+    const priority = priorityInfo(c['רמת דחיפות']);
 
     const waitLabel = getWaitLabel(c['תאריך פתיחה'], c['סטטוס']);
     const waitDaysNum = Math.floor((Date.now() - new Date(c['תאריך פתיחה']).getTime()) / 86400000);
@@ -862,7 +902,8 @@ function renderList(calls){
         </div>` : '';
 
     return `
-      <div class="call ${sc}">
+      <div class="call ${sc} ${priority.card}">
+        ${priority.badge}
         <div class="call-top">
           <div class="call-name">${escapeHtml(c['שם לקוח']||'')}</div>
           <div class="badge ${sc}">${escapeHtml(c['סטטוס']||'חדש')}</div>
@@ -995,6 +1036,7 @@ function openEditModal(id){
   document.getElementById('editPhone').value = c['טלפון'] || '';
   document.getElementById('editAddress').value = c['כתובת'] || '';
   document.getElementById('editIssueType').value = c['סוג תקלה'] || '';
+  document.getElementById('editPriority').value = c['רמת דחיפות'] || 'רגיל';
   document.getElementById('editOverlay').classList.add('show');
 }
 
@@ -1020,7 +1062,8 @@ document.getElementById('editSaveBtn').addEventListener('click', async ()=>{
         customerName: document.getElementById('editCustomerName').value,
         phone: document.getElementById('editPhone').value,
         address: document.getElementById('editAddress').value,
-        issueType: document.getElementById('editIssueType').value
+        issueType: document.getElementById('editIssueType').value,
+        priority: document.getElementById('editPriority').value
       })
     });
     showToast('הפרטים עודכנו ✓');
@@ -1136,6 +1179,7 @@ document.getElementById('callForm').addEventListener('submit', async (e)=>{
     issueType: document.getElementById('issueType').value,
     workType: workTypeVal,
     assignedTechnician: assignedTechValue,
+    priority: priorityValue,
     notes: document.getElementById('notes').value
   };
 
@@ -1150,6 +1194,8 @@ document.getElementById('callForm').addEventListener('submit', async (e)=>{
     workTypeVal = 'תיקון';
     document.querySelectorAll('#workTypePills .pill').forEach(b=> b.classList.toggle('active', b.dataset.val === workTypeVal));
     renderTechUI();
+    priorityValue = 'רגיל';
+    document.querySelectorAll('#priorityPills .priority-pill').forEach(b=>b.classList.toggle('active',b.dataset.priority==='רגיל'));
     if(result.skippedCall){
       showToast('📋 נקלט - זו התקנה, לא נשלח לטכנאי (רק לקוח + מסמך)');
     }else{
