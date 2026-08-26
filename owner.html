@@ -536,6 +536,18 @@
       <button type="button" class="mic-btn" data-target="customerName" title="הקלטה"></button>
     </div>
 
+    <label for="projectName">שם הפרויקט / הדירה (לא חובה)</label>
+    <div class="field-row">
+      <input id="projectName" placeholder="לדוגמה: דירת זריצקי">
+      <button type="button" class="mic-btn" data-target="projectName" title="הקלטה"></button>
+    </div>
+
+    <label for="orderedBy">הוזמן על ידי / איש קשר (לא חובה)</label>
+    <div class="field-row">
+      <input id="orderedBy" placeholder="לדוגמה: אליעזר זריצקי">
+      <button type="button" class="mic-btn" data-target="orderedBy" title="הקלטה"></button>
+    </div>
+
     <label for="phone">מספר טלפון (חובה)</label>
     <div class="field-row">
       <input id="phone" type="tel" required placeholder="050-1234567">
@@ -1174,6 +1186,8 @@ document.getElementById('callForm').addEventListener('submit', async (e)=>{
   const payload = {
     action: 'add',
     customerName: document.getElementById('customerName').value,
+    projectName: document.getElementById('projectName').value,
+    orderedBy: document.getElementById('orderedBy').value,
     phone: document.getElementById('phone').value,
     address: document.getElementById('address').value,
     issueType: document.getElementById('issueType').value,
@@ -1233,7 +1247,9 @@ document.getElementById('callForm').addEventListener('submit', async (e)=>{
         customerName: payload.customerName,
         phone: payload.phone,
         address: payload.address,
-        workType: payload.workType
+        workType: payload.workType,
+        projectName: payload.projectName,
+        orderedBy: payload.orderedBy
       })
     }).then(r => r.json()).then(doc => {
       if(doc.success){
