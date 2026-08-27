@@ -1281,8 +1281,7 @@ document.querySelectorAll('.tab').forEach(tab=>{
 
 document.getElementById('refreshBtn').addEventListener('click', ()=>{ loadTechnicians(); loadCalls(); });
 
-loadTechnicians();
-loadCalls();
+// הנתונים נטענים רק כשנכנסים למסך המתאים, כדי שמסך הבית ייפתח מיד.
 
 // ============================================================
 // הקלטה קולית (מיקרופון) - נגישות לאנשים שקשה להם להקליד
@@ -1717,7 +1716,7 @@ document.getElementById('collectionLoginBtn').addEventListener('click',loginColl
 document.getElementById('collectionOwnerPin').addEventListener('keydown',e=>{if(e.key==='Enter') loginCollections();});
 document.getElementById('collectionSearch').addEventListener('input',renderCollections);
 document.getElementById('collectionFilter').addEventListener('change',renderCollections);
-loadCollections();
+// דוח הגבייה כבד ולכן אינו נטען ברקע במסך הבית.
 
 // ניווט בין מסכי הניהול. אפשר גם לפתוח ישירות, לדוגמה: owner.html?view=collection
 const OWNER_VIEWS = {
@@ -1728,6 +1727,14 @@ const OWNER_VIEWS = {
   reports: 'דוחות',
   technicians: 'ניהול טכנאים'
 };
+const OWNER_VIEW_LOADED = {};
+
+function loadOwnerViewData(viewName){
+  if(viewName === 'new-call' && !OWNER_VIEW_LOADED.technicians){ loadTechnicians(); OWNER_VIEW_LOADED.technicians=true; }
+  if(viewName === 'calls' && !OWNER_VIEW_LOADED.calls){ loadCalls(); OWNER_VIEW_LOADED.calls=true; }
+  if(viewName === 'collection' && !OWNER_VIEW_LOADED.collection){ loadCollections(); OWNER_VIEW_LOADED.collection=true; }
+  if(viewName === 'technicians' && !OWNER_VIEW_LOADED.technicians){ loadTechnicians(); OWNER_VIEW_LOADED.technicians=true; }
+}
 
 function openOwnerView(viewName, updateUrl=true){
   const safeView = OWNER_VIEWS[viewName] ? viewName : 'home';
@@ -1736,6 +1743,7 @@ function openOwnerView(viewName, updateUrl=true){
   if(selected) selected.classList.add('active');
   document.getElementById('headerSubtitle').textContent = OWNER_VIEWS[safeView];
   document.getElementById('headerHomeBtn').style.display = safeView === 'home' ? 'none' : 'inline-block';
+  loadOwnerViewData(safeView);
 
   if(updateUrl){
     const url = new URL(window.location.href);
