@@ -1201,6 +1201,8 @@ document.getElementById('callForm').addEventListener('submit', async (e)=>{
     notes: document.getElementById('notes').value
   };
 
+  let callSaved = false;
+  let completed = false;
   try{
     const res = await fetch(API_URL, {
       method: 'POST',
@@ -1208,42 +1210,13 @@ document.getElementById('callForm').addEventListener('submit', async (e)=>{
       body: JSON.stringify(payload)
     });
     const result = await res.json();
-    document.getElementById('callForm').reset();
-    workTypeVal = 'תיקון';
-    document.querySelectorAll('#workTypePills .pill').forEach(b=> b.classList.toggle('active', b.dataset.val === workTypeVal));
-    renderTechUI();
-    priorityValue = 'רגיל';
-    document.querySelectorAll('#priorityPills .priority-pill').forEach(b=>b.classList.toggle('active',b.dataset.priority==='רגיל'));
-    if(result.skippedCall){
-      showToast('📋 נקלט - זו התקנה, לא נשלח לטכנאי (רק לקוח + מסמך)');
-    }else{
-      showToast('הקריאה נשלחה לטכנאי ✓');
-    }
+    if(!result.success) throw new Error(result.error || 'שמירת הקריאה נכשלה');
+    callSaved = true;
+    btn.textContent = 'יוצר מסמך...';
     loadCalls();
 
-    // שליחת SMS לטכנאי (אם שויך) רצה ברקע בלי לעכב את המשתמש
-    if(!result.skippedCall && payload.assignedTechnician){
-      fetch(API_URL, {
-        method:'POST',
-        headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body: JSON.stringify({
-          action:'sendAssignmentSms',
-          technicianName: payload.assignedTechnician,
-          customerName: payload.customerName,
-          address: payload.address,
-          issueType: payload.issueType
-        })
-      }).then(r=>r.json()).then(sms=>{
-        if(sms.success){
-          showToast(`✓ נשלח SMS ל${payload.assignedTechnician}`);
-        }else{
-          showToast(`⚠️ שליחת ה-SMS נכשלה: ${sms.error || ''}`, 6000);
-        }
-      }).catch(()=>{});
-    }
-
-    // הקצאת לקוח/מספר מסמך רצה ברקע בלי לעכב את המשתמש - מעדכנים בטוסט נפרד כשמסתיים
-    fetch(API_URL, {
+    // יצירת המסמך היא חלק מחייב מהפעולה: לא מאפסים את הטופס לפני שקיבלנו אישור.
+    const docRes = await fetch(API_URL, {
       method: 'POST',
       headers: {'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({
@@ -1255,18 +1228,58 @@ document.getElementById('callForm').addEventListener('submit', async (e)=>{
         projectName: payload.projectName,
         orderedBy: payload.orderedBy
       })
-    }).then(r => r.json()).then(doc => {
-      if(doc.success){
-        showToast(`📄 מספר מסמך: ${doc.docNumber} (${doc.customerFound ? 'לקוח קיים' : 'לקוח חדש נוצר'})`, 7000);
-      }else{
-        showToast('⚠️ שגיאה ביצירת מסמך/לקוח: ' + (doc.error || 'לא ידוע'), 7000);
+    });
+    const doc = await docRes.json();
+    if(!doc.success){
+      throw new Error('הקריאה נשמרה, אך המסמך לא נוצר: ' + (doc.error || 'שגיאה לא ידועה'));
+    }
+
+    let sms = {success:true, skipped:true};
+    if(!result.skippedCall && payload.assignedTechnician){
+      btn.textContent = 'שולח SMS...';
+      try{
+        const smsRes = await fetch(API_URL, {
+          method:'POST',
+          headers:{'Content-Type':'text/plain;charset=utf-8'},
+          body: JSON.stringify({
+          action:'sendAssignmentSms',
+          technicianName: payload.assignedTechnician,
+          customerName: payload.customerName,
+          address: payload.address,
+            issueType: payload.issueType
+          })
+        });
+        sms = await smsRes.json();
+      }catch(smsErr){
+        sms = {success:false, error:'אין תגובה משירות ה-SMS'};
       }
-    }).catch(()=>{ /* לא מציגים שגיאה מפריעה אם קריאת הרקע נכשלה מסיבה זמנית */ });
+    }
+
+    document.getElementById('callForm').reset();
+    workTypeVal = 'תיקון';
+    document.querySelectorAll('#workTypePills .pill').forEach(b=> b.classList.toggle('active', b.dataset.val === workTypeVal));
+    renderTechUI();
+    priorityValue = 'רגיל';
+    document.querySelectorAll('#priorityPills .priority-pill').forEach(b=>b.classList.toggle('active',b.dataset.priority==='רגיל'));
+    completed = true;
+
+    const baseMessage = `✓ נשמר. מספר מסמך: ${doc.docNumber}`;
+    if(!sms.success){
+      showToast(`${baseMessage}. ה-SMS לא נשלח: ${sms.error || 'שגיאה לא ידועה'}`, 9000);
+    }else if(result.skippedCall || sms.skipped){
+      showToast(`${baseMessage} (לא נדרש SMS)`, 7000);
+    }else{
+      showToast(`${baseMessage}. נשלח SMS ל${payload.assignedTechnician}`, 7000);
+    }
   }catch(err){
-    showToast('שגיאה בשליחה, נסה שוב');
+    if(callSaved){
+      showToast(`⚠️ ${err.message || err}. אין ללחוץ שוב — הקריאה כבר נשמרה.`, 12000);
+    }else{
+      showToast(`שגיאה בשליחה: ${err.message || err}`, 8000);
+    }
   }finally{
-    btn.disabled = false;
-    btn.textContent = 'שלח קריאה לטכנאי';
+    btn.disabled = callSaved && !completed;
+    btn.textContent = callSaved && !completed ? 'הקריאה נשמרה — לא לשלוח שוב' : 'שלח קריאה לטכנאי';
   }
 });
 
