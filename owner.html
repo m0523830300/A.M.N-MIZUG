@@ -518,57 +518,29 @@
   <div class="section-title"><span class="n">01</span> קריאה חדשה</div>
   <form id="callForm">
 
-    <div class="quick-capture">
-      <div class="qc-title">📋 הדבקה / הקלטה מהירה מהוואטסאפ</div>
-      <textarea id="qcBox" placeholder="הדבק כאן את ההודעה שהועברה מהלקוח, או תלחץ על המיקרופון ותדבר..."></textarea>
-      <div class="qc-actions">
-        <button type="button" class="qc-btn mic" id="qcMicBtn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
-          הקלטה
-        </button>
-        <button type="button" class="qc-btn fill" id="qcFillBtn">מלא טופס אוטומטית</button>
-      </div>
-      <div class="no-speech-note" id="qcNote"></div>
-    </div>
-
-    <button type="button" class="contact-pick-btn" id="pickContactBtn">📇 בחר מאנשי הקשר בטלפון</button>
-    <div class="no-speech-note" id="contactNote"></div>
-
     <label for="customerName">שם הלקוח (לא חובה)</label>
-    <div class="field-row">
-      <input id="customerName" placeholder="לדוגמה: משפחת כהן">
-      <button type="button" class="mic-btn" data-target="customerName" title="הקלטה"></button>
-    </div>
-
-    <label for="projectName">שם הפרויקט / הדירה (לא חובה)</label>
-    <div class="field-row">
-      <input id="projectName" placeholder="לדוגמה: דירת זריצקי">
-      <button type="button" class="mic-btn" data-target="projectName" title="הקלטה"></button>
-    </div>
-
-    <label for="orderedBy">הוזמן על ידי / איש קשר (לא חובה)</label>
-    <div class="field-row">
-      <input id="orderedBy" placeholder="לדוגמה: אליעזר זריצקי">
-      <button type="button" class="mic-btn" data-target="orderedBy" title="הקלטה"></button>
-    </div>
+    <input id="customerName" placeholder="לדוגמה: משפחת כהן">
 
     <label for="phone">מספר טלפון (חובה)</label>
-    <div class="field-row">
-      <input id="phone" type="tel" required placeholder="050-1234567">
-      <button type="button" class="mic-btn" data-target="phone" title="הקלטה"></button>
-    </div>
+    <input id="phone" type="tel" required placeholder="050-1234567">
+    <button type="button" class="contact-pick-btn" id="pickPrimaryPhoneBtn">📇 בחר מספר מאנשי הקשר</button>
+    <div class="no-speech-note" id="contactNote"></div>
 
     <label for="address">כתובת (לא חובה)</label>
-    <div class="field-row">
-      <input id="address" placeholder="רחוב, מספר, עיר">
-      <button type="button" class="mic-btn" data-target="address" title="הקלטה"></button>
-    </div>
+    <input id="address" placeholder="רחוב, מספר, עיר">
+
+    <label for="projectName">שם הפרויקט / הדירה (לא חובה)</label>
+    <input id="projectName" placeholder="לדוגמה: דירת זריצקי">
+
+    <label for="orderedBy">הוזמן על ידי / איש קשר (לא חובה)</label>
+    <input id="orderedBy" placeholder="לדוגמה: אליעזר זריצקי">
+
+    <label for="orderedByPhone">טלפון איש קשר נוסף (לא חובה)</label>
+    <input id="orderedByPhone" type="tel" placeholder="050-1234567">
+    <button type="button" class="contact-pick-btn" id="pickAdditionalPhoneBtn">📇 בחר מספר מאנשי הקשר</button>
 
     <label for="issueType">סוג התקלה (לא חובה)</label>
-    <div class="field-row">
-      <input id="issueType" placeholder="לדוגמה: המזגן לא מקרר">
-      <button type="button" class="mic-btn" data-target="issueType" title="הקלטה"></button>
-    </div>
+    <input id="issueType" placeholder="לדוגמה: המזגן לא מקרר">
 
     <label>סוג עבודה</label>
     <div class="tech-pills" id="workTypePills">
@@ -588,10 +560,7 @@
     </div>
 
     <label for="notes">הערות נוספות (לא חובה)</label>
-    <div class="field-row">
-      <textarea id="notes" placeholder="פרטים נוספים לטכנאי..."></textarea>
-      <button type="button" class="mic-btn" data-target="notes" title="הקלטה"></button>
-    </div>
+    <textarea id="notes" placeholder="פרטים נוספים לטכנאי..."></textarea>
 
     <button type="submit" class="submit" id="submitBtn">שלח קריאה לטכנאי</button>
   </form>
@@ -1187,29 +1156,29 @@ function escapeAttr(str){ return escapeHtml(str).replace(/"/g,'&quot;'); }
 // ============================================================
 // בחירת פרטי לקוח מאנשי הקשר של הטלפון (נתמך בעיקר בכרום אנדרואיד)
 // ============================================================
-const pickContactBtn = document.getElementById('pickContactBtn');
 const contactNote = document.getElementById('contactNote');
 const contactPickerSupported = ('contacts' in navigator && 'ContactsManager' in window);
 if(!contactPickerSupported){
   contactNote.textContent = 'בחירה מאנשי קשר נתמכת כרגע רק בכרום באנדרואיד.';
 }
-pickContactBtn.addEventListener('click', async ()=>{
+async function pickPhoneInto(targetId){
   if(!contactPickerSupported){
     showToast('התכונה הזו לא נתמכת בדפדפן הזה');
     return;
   }
   try{
-    const contacts = await navigator.contacts.select(['name','tel'], {multiple:false});
+    const contacts = await navigator.contacts.select(['tel'], {multiple:false});
     if(contacts && contacts.length){
       const contact = contacts[0];
-      if(contact.name && contact.name.length) document.getElementById('customerName').value = contact.name[0];
-      if(contact.tel && contact.tel.length) document.getElementById('phone').value = contact.tel[0];
-      showToast('הפרטים מולאו מאיש הקשר ✓');
+      if(contact.tel && contact.tel.length) document.getElementById(targetId).value = contact.tel[0];
+      showToast('מספר הטלפון נבחר ✓');
     }
   }catch(err){
     // המשתמש ביטל את הבחירה, או שאין הרשאה - לא מציגים שגיאה מפריעה
   }
-});
+}
+document.getElementById('pickPrimaryPhoneBtn').addEventListener('click', ()=>pickPhoneInto('phone'));
+document.getElementById('pickAdditionalPhoneBtn').addEventListener('click', ()=>pickPhoneInto('orderedByPhone'));
 
 document.getElementById('callForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
@@ -1223,6 +1192,7 @@ document.getElementById('callForm').addEventListener('submit', async (e)=>{
     customerName: document.getElementById('customerName').value,
     projectName: document.getElementById('projectName').value,
     orderedBy: document.getElementById('orderedBy').value,
+    orderedByPhone: document.getElementById('orderedByPhone').value,
     phone: document.getElementById('phone').value,
     address: document.getElementById('address').value,
     issueType: document.getElementById('issueType').value,
@@ -1257,7 +1227,8 @@ document.getElementById('callForm').addEventListener('submit', async (e)=>{
         address: payload.address,
         workType: payload.workType,
         projectName: payload.projectName,
-        orderedBy: payload.orderedBy
+        orderedBy: payload.orderedBy,
+        orderedByPhone: payload.orderedByPhone
       })
     });
     const doc = await docRes.json();
@@ -1330,6 +1301,7 @@ document.getElementById('refreshBtn').addEventListener('click', ()=>{ loadTechni
 // ============================================================
 // הקלטה קולית (מיקרופון) - נגישות לאנשים שקשה להם להקליד
 // ============================================================
+if(false){ // הוסר מהממשק; נשמר זמנית בקוד הישן בלבד
 const MIC_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>`;
 document.querySelectorAll('.mic-btn').forEach(btn => btn.innerHTML = MIC_ICON);
 
@@ -1400,8 +1372,9 @@ document.getElementById('qcFillBtn').addEventListener('click', ()=>{
   const notesEl = document.getElementById('notes');
   notesEl.value = notesEl.value ? (notesEl.value + '\n' + raw) : raw;
 
-  showToast(phoneMatch ? 'הטלפון נשלף וההודעה הועתקה להערות ✓' : 'ההודעה הועתקה להערות (לא נמצא טלפון בטקסט)');
+showToast(phoneMatch ? 'הטלפון נשלף וההודעה הועתקה להערות ✓' : 'ההודעה הועתקה להערות (לא נמצא טלפון בטקסט)');
 });
+}
 
 // ============================================================
 // דוח חודשי לפי טכנאי + ייצוא לאקסל / PDF
