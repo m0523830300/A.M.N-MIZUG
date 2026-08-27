@@ -941,6 +941,7 @@ function renderList(calls){
         <div class="edit-row">
           <button type="button" class="edit-btn" data-id="${escapeAttr(id)}">✏️ ערוך פרטים</button>
           <button type="button" class="photo-btn" data-id="${escapeAttr(id)}">📷 תמונת הכוונה לטכנאי</button>
+          <button type="button" class="edit-btn repair-btn" data-id="${escapeAttr(id)}">🔄 השלם מסמך ושלח SMS</button>
         </div>
         ${c['תמונת הכוונה מהבעלים'] ? `<div class="owner-photo-row"><a href="${escapeAttr(c['תמונת הכוונה מהבעלים'])}" target="_blank" rel="noopener">🖼️ תמונת הכוונה שנשלחה</a></div>` : ''}
         <div class="danger-row">
@@ -969,6 +970,36 @@ function renderList(calls){
       document.getElementById('ownerPhotoInput').click();
     });
   });
+  listEl.querySelectorAll('.repair-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=> repairCallIntegrations(btn));
+  });
+}
+
+async function repairCallIntegrations(btn){
+  if(!isConfigured() || btn.disabled) return;
+  if(!confirm('להשלים מסמך ולשלוח SMS לטכנאי עבור הקריאה הקיימת?')) return;
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'מטפל...';
+  try{
+    const res = await fetch(API_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({action:'repairCallIntegrations', id:btn.dataset.id})
+    });
+    const result = await res.json();
+    if(!result.success) throw new Error(result.error || 'הפעולה נכשלה');
+    if(result.smsSuccess){
+      showToast(`✓ מסמך ${result.docNumber} מוכן וה-SMS טופל`, 8000);
+    }else{
+      showToast(`✓ מסמך ${result.docNumber} מוכן. ה-SMS נכשל: ${result.smsError}`, 10000);
+    }
+    btn.textContent = '✓ המסמך וההודעה טופלו';
+  }catch(err){
+    showToast(`⚠️ ${err.message || err}`, 10000);
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
 }
 
 async function reassign(id, tech){
