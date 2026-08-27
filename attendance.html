@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#153E6F">
+<link rel="manifest" href="manifest-attendance.json">
+<title>א.מ.ן — נוכחות מתקינים</title>
+<style>
+:root{--navy:#153E6F;--deep:#0B2A50;--red:#B7352A;--green:#178A4C;--bg:#F5F8F9;--line:#DDE6EA;--muted:#60737C}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Arial,sans-serif;color:#142229;min-height:100dvh}header{background:linear-gradient(135deg,var(--navy),var(--deep));color:#fff;padding:26px 20px}header h1{font-size:22px;margin:0}header p{margin:6px 0 0;color:#c5d6e5}.wrap{max-width:520px;margin:auto;padding:18px}.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:0 4px 16px #0b2a5012;margin-bottom:14px}.hidden{display:none!important}label{display:block;font-size:13px;color:var(--muted);font-weight:700;margin:12px 0 6px}input,textarea{width:100%;padding:13px;border:1.5px solid var(--line);border-radius:11px;font-size:16px}textarea{min-height:110px}.btn{width:100%;border:0;border-radius:13px;padding:16px;margin-top:12px;font-size:17px;font-weight:800;color:#fff;background:var(--navy)}.btn.out{background:var(--red)}.btn.still{background:#D9820B}.btn:disabled{opacity:.55}.status{text-align:center;padding:12px;border-radius:12px;background:#edf3f7;color:var(--navy);font-weight:700;margin-bottom:14px}.status.in{background:#e7f6ed;color:var(--green)}.who{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.link{border:0;background:none;color:var(--red);font-weight:700}.note{font-size:13px;color:var(--muted);line-height:1.5}.toast{position:fixed;bottom:25px;left:50%;transform:translateX(-50%);background:#102c4d;color:#fff;padding:12px 18px;border-radius:24px;opacity:0;transition:.2s}.toast.show{opacity:1}
+</style>
+</head><body>
+<header><h1>א.מ.ן מיזוג אוויר</h1><p>כניסה ויציאה — מתקינים</p></header>
+<div class="wrap">
+ <section class="card" id="loginBox"><h2>כניסה ראשונה</h2><p class="note">הזן את הקוד האישי. הטלפון יזכור אותך לפעמים הבאות.</p><label>קוד אישי</label><input id="pin" inputmode="numeric" maxlength="6" autocomplete="one-time-code"><button class="btn" id="loginBtn">כניסה</button></section>
+ <section id="appBox" class="hidden">
+  <div class="card"><div class="who"><b id="employeeName"></b><button class="link" id="logoutBtn">התנתקות</button></div><div class="status" id="status">בודק מצב...</div><button class="btn" id="inBtn">כניסה לעבודה</button><button class="btn still hidden" id="stillBtn">אני עדיין בעבודה</button></div>
+  <div class="card hidden" id="outBox"><h2>סיום עבודה</h2><label>מה בוצע היום? (חובה)</label><textarea id="summary" placeholder="אפשר לכתוב או להשתמש במיקרופון של המקלדת"></textarea><label>שעת יציאה</label><input id="outTime" type="time"><button class="btn out" id="outBtn">סיום ושמירת יציאה</button><p class="note">השעה ניתנת לתיקון אם שכחת לדווח בזמן.</p></div>
+ </section>
+</div><div class="toast" id="toast"></div>
+<script>
+const API_URL='https://script.google.com/macros/s/AKfycbw0fAfYyK9gfViAaVFs0G1HPNguFjdAU4bDt6HCIs_LuOzKuu8lKIM0mLP48gIfeZ-Kwg/exec';
+const queryToken=new URLSearchParams(location.search).get('token')||'';
+let token=queryToken||localStorage.getItem('installerToken')||'', name=localStorage.getItem('installerName')||'';
+const $=id=>document.getElementById(id);function toast(s){$('toast').textContent=s;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),2800)}
+async function post(payload){const r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});return r.json()}
+function locationNow(){return new Promise((resolve,reject)=>navigator.geolocation?navigator.geolocation.getCurrentPosition(p=>resolve({lat:p.coords.latitude,lng:p.coords.longitude,accuracy:Math.round(p.coords.accuracy)}),()=>reject(new Error('יש לאשר גישה למיקום')),{enableHighAccuracy:true,timeout:15000,maximumAge:0}):reject(new Error('אין תמיכה במיקום')))}
+function enter(){ $('loginBox').classList.add('hidden');$('appBox').classList.remove('hidden');$('employeeName').textContent=name;loadStatus() }
+async function loadStatus(){try{const r=await post({action:'attendanceStatus',token});if(!r.success)throw Error(r.error);if(r.name){name=r.name;localStorage.setItem('installerToken',token);localStorage.setItem('installerName',name);$('employeeName').textContent=name}const inside=!!r.clockedIn;$('status').textContent=inside?`בעבודה מאז ${r.inTime||''}`:'לא רשומה כניסה להיום';$('status').classList.toggle('in',inside);$('inBtn').classList.toggle('hidden',inside);$('outBox').classList.toggle('hidden',!inside);$('stillBtn').classList.toggle('hidden',!inside||!new URLSearchParams(location.search).has('reminder'));if(!inside)$('summary').value=''}catch(e){localStorage.removeItem('installerToken');localStorage.removeItem('installerName');location.reload()}}
+$('loginBtn').onclick=async()=>{const r=await post({action:'attendanceLogin',pin:$('pin').value.trim()});if(!r.success)return toast(r.error||'קוד שגוי');token=r.token;name=r.name;localStorage.setItem('installerToken',token);localStorage.setItem('installerName',name);enter()};
+$('inBtn').onclick=async()=>{try{$('inBtn').disabled=true;const loc=await locationNow();const r=await post({action:'attendanceClockIn',token,location:loc});if(!r.success)throw Error(r.error);toast('הכניסה נשמרה ✓');loadStatus()}catch(e){toast(e.message)}finally{$('inBtn').disabled=false}};
+$('outBtn').onclick=async()=>{const summary=$('summary').value.trim();if(!summary)return toast('חובה לפרט מה בוצע');try{$('outBtn').disabled=true;const loc=await locationNow();const r=await post({action:'attendanceClockOut',token,summary,outTime:$('outTime').value,location:loc});if(!r.success)throw Error(r.error);toast('היציאה נשמרה ✓');history.replaceState({},'',location.pathname);loadStatus()}catch(e){toast(e.message)}finally{$('outBtn').disabled=false}};
+$('stillBtn').onclick=async()=>{const r=await post({action:'attendanceStillWorking',token});if(r.success){toast('נרשם שאתה עדיין בעבודה');$('stillBtn').classList.add('hidden')}else toast(r.error||'שגיאה')};
+$('logoutBtn').onclick=()=>{localStorage.removeItem('installerToken');localStorage.removeItem('installerName');location.reload()};
+$('outTime').value=new Date().toTimeString().slice(0,5);if(token)enter();
+if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+</script></body></html>
