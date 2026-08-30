@@ -416,6 +416,12 @@
   .contact-pick-btn:hover{background:var(--accent-soft);}
   .qc-btn svg{width:16px;height:16px;}
   .no-speech-note{font-size:12px;color:var(--text-dim);margin-top:6px;}
+  .guidance-upload{border:1.5px dashed var(--navy);border-radius:12px;padding:12px;background:#F8FBFC;margin-bottom:10px;}
+  .guidance-pick-btn{width:100%;border:0;border-radius:9px;padding:12px;background:var(--navy);color:#fff;font:700 14px 'Heebo',sans-serif;cursor:pointer;}
+  .guidance-files{display:grid;gap:7px;margin-top:9px;}
+  .guidance-file{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 10px;font-size:12.5px;}
+  .guidance-file .file-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .guidance-file button{border:0;background:#FBE4E1;color:#A53027;border-radius:7px;padding:5px 8px;font:700 12px 'Heebo',sans-serif;cursor:pointer;}
 
   /* --- Monthly report --- */
   .report-box{
@@ -562,6 +568,14 @@
     <label for="notes">הערות נוספות (לא חובה)</label>
     <textarea id="notes" placeholder="פרטים נוספים לטכנאי..."></textarea>
 
+    <label>קבצי הכוונה לטכנאי (לא חובה)</label>
+    <div class="guidance-upload">
+      <input type="file" id="newCallMediaInput" multiple accept="image/*,video/*,audio/*,.opus,.ogg,.m4a,.aac,.mp3,.wav,.webm" style="display:none;">
+      <button type="button" class="guidance-pick-btn" id="newCallMediaBtn">📎 הוסף תמונה, סרטון או הקלטה</button>
+      <div class="no-speech-note">עד 6 קבצים ועד 25MB לכל קובץ. הקלטת WhatsApp יש לשמור קודם ב״קבצים״ בטלפון.</div>
+      <div class="guidance-files" id="newCallMediaList"></div>
+    </div>
+
     <button type="submit" class="submit" id="submitBtn">שלח קריאה לטכנאי</button>
   </form>
   </main>
@@ -670,7 +684,7 @@
   </div>
 </div>
 
-<input type="file" id="ownerPhotoInput" accept="image/*" style="display:none;">
+<input type="file" id="ownerPhotoInput" accept="image/*,video/*,audio/*,.opus,.ogg,.m4a,.aac,.mp3,.wav,.webm" style="display:none;">
 
 <div class="toast" id="toast"></div>
 
@@ -909,10 +923,10 @@ function renderList(calls){
         </div>
         <div class="edit-row">
           <button type="button" class="edit-btn" data-id="${escapeAttr(id)}">✏️ ערוך פרטים</button>
-          <button type="button" class="photo-btn" data-id="${escapeAttr(id)}">📷 תמונת הכוונה לטכנאי</button>
+          <button type="button" class="photo-btn" data-id="${escapeAttr(id)}">📎 הוסף קובץ הכוונה</button>
           <button type="button" class="edit-btn repair-btn" data-id="${escapeAttr(id)}">🔄 השלם מסמך ושלח SMS</button>
         </div>
-        ${c['תמונת הכוונה מהבעלים'] ? `<div class="owner-photo-row"><a href="${escapeAttr(c['תמונת הכוונה מהבעלים'])}" target="_blank" rel="noopener">🖼️ תמונת הכוונה שנשלחה</a></div>` : ''}
+        ${renderOwnerGuidanceLinks(c['תמונת הכוונה מהבעלים'])}
         <div class="danger-row">
           ${c['סטטוס'] !== 'הושלם' && c['סטטוס'] !== 'בוטל' ? `<button type="button" class="cancel-btn" data-id="${escapeAttr(id)}">🚫 בטל קריאה</button>` : ''}
           <button type="button" class="delete-btn" data-id="${escapeAttr(id)}">🗑️ מחק לצמיתות</button>
@@ -1094,7 +1108,7 @@ document.getElementById('editSaveBtn').addEventListener('click', async ()=>{
 });
 
 // ============================================================
-// העלאת תמונת הכוונה לטכנאי (מהבעלים) - לא נשמרת בקבצי הבעלים, רק מוצגת באפליקציה
+// העלאת קובץ הכוונה לטכנאי לאחר פתיחת הקריאה
 // ============================================================
 let photoUploadTargetId = null;
 
@@ -1104,12 +1118,12 @@ document.getElementById('ownerPhotoInput').addEventListener('change', async ()=>
   input.value = '';
   if(!file || !photoUploadTargetId || !isConfigured()) return;
 
-  if(file.size > 15 * 1024 * 1024){
-    showToast('הקובץ גדול מדי (מעל 15MB)');
+  if(file.size > 25 * 1024 * 1024){
+    showToast('הקובץ גדול מדי (מעל 25MB)');
     return;
   }
 
-  showToast('מעלה תמונה...');
+  showToast('מעלה קובץ הכוונה...');
   try{
     const reader = new FileReader();
     const base64Data = await new Promise((resolve, reject)=>{
@@ -1124,21 +1138,94 @@ document.getElementById('ownerPhotoInput').addEventListener('change', async ()=>
         action:'uploadOwnerPhoto',
         id: photoUploadTargetId,
         fileName: file.name,
-        mimeType: file.type || 'image/jpeg',
+        mimeType: file.type || 'application/octet-stream',
         base64Data
       })
     });
     const result = await res.json();
     if(result.success){
-      showToast('התמונה נשלחה לטכנאי ✓');
+      showToast('קובץ ההכוונה נשלח לטכנאי ✓');
       loadCalls();
     }else{
-      showToast(result.error || 'שגיאה בהעלאת התמונה');
+      showToast(result.error || 'שגיאה בהעלאת הקובץ');
     }
   }catch(err){
-    showToast('שגיאה בהעלאת התמונה, נסה שוב');
+    showToast('שגיאה בהעלאת הקובץ, נסה שוב');
   }
 });
+
+function parseGuidanceEntry(entry){
+  const raw = String(entry || '').trim();
+  const marker = raw.indexOf('#media=');
+  if(marker < 0) return {url:raw, mime:'image/jpeg', name:''};
+  const url = raw.slice(0, marker);
+  const params = new URLSearchParams(raw.slice(marker + 1));
+  return {url, mime:params.get('media') || '', name:params.get('name') || ''};
+}
+
+function renderOwnerGuidanceLinks(raw){
+  const entries = String(raw || '').split('\n').map(s=>s.trim()).filter(Boolean);
+  if(!entries.length) return '';
+  return `<div class="owner-photo-row">${entries.map((entry,i)=>{
+    const item = parseGuidanceEntry(entry);
+    const icon = item.mime.startsWith('video/') ? '🎬' : item.mime.startsWith('audio/') ? '🎧' : '🖼️';
+    return `<a href="${escapeAttr(item.url)}" target="_blank" rel="noopener">${icon} ${escapeHtml(item.name || `קובץ הכוונה ${i+1}`)}</a>`;
+  }).join(' ')}</div>`;
+}
+
+const MAX_GUIDANCE_FILES = 6;
+const MAX_GUIDANCE_BYTES = 25 * 1024 * 1024;
+let pendingGuidanceFiles = [];
+const newCallMediaInput = document.getElementById('newCallMediaInput');
+const newCallMediaList = document.getElementById('newCallMediaList');
+
+document.getElementById('newCallMediaBtn').addEventListener('click', ()=>newCallMediaInput.click());
+newCallMediaInput.addEventListener('change', ()=>{
+  const picked = Array.from(newCallMediaInput.files || []);
+  newCallMediaInput.value = '';
+  for(const file of picked){
+    if(pendingGuidanceFiles.length >= MAX_GUIDANCE_FILES){ showToast('אפשר לצרף עד 6 קבצים'); break; }
+    if(file.size > MAX_GUIDANCE_BYTES){ showToast(`${file.name}: הקובץ גדול מ-25MB`); continue; }
+    pendingGuidanceFiles.push(file);
+  }
+  renderPendingGuidance();
+});
+
+function guidanceIcon(file){
+  const type = file.type || '';
+  const name = file.name.toLowerCase();
+  if(type.startsWith('video/') || /\.(mp4|mov|webm)$/.test(name)) return '🎬';
+  if(type.startsWith('audio/') || /\.(opus|ogg|m4a|aac|mp3|wav)$/.test(name)) return '🎧';
+  return '🖼️';
+}
+function renderPendingGuidance(){
+  newCallMediaList.innerHTML = pendingGuidanceFiles.map((file,i)=>`
+    <div class="guidance-file"><span>${guidanceIcon(file)}</span><span class="file-name">${escapeHtml(file.name)}</span><button type="button" data-remove-guidance="${i}">הסר</button></div>
+  `).join('');
+  newCallMediaList.querySelectorAll('[data-remove-guidance]').forEach(btn=>{
+    btn.addEventListener('click',()=>{ pendingGuidanceFiles.splice(Number(btn.dataset.removeGuidance),1); renderPendingGuidance(); });
+  });
+}
+
+function fileToBase64Owner(file){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=>resolve(String(reader.result).split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadOwnerGuidanceFile(callId, file){
+  const base64Data = await fileToBase64Owner(file);
+  const res = await fetch(API_URL, {
+    method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify({action:'uploadOwnerPhoto', id:callId, fileName:file.name, mimeType:file.type || 'application/octet-stream', base64Data})
+  });
+  const result = await res.json();
+  if(!result.success) throw new Error(result.error || `העלאת ${file.name} נכשלה`);
+  return result;
+}
 
 function normalizeName(str){
   return String(str||'')
@@ -1201,6 +1288,7 @@ document.getElementById('callForm').addEventListener('submit', async (e)=>{
     priority: priorityValue,
     notes: document.getElementById('notes').value
   };
+  const filesToUpload = pendingGuidanceFiles.slice();
 
   let callSaved = false;
   let completed = false;
@@ -1236,6 +1324,15 @@ document.getElementById('callForm').addEventListener('submit', async (e)=>{
       throw new Error('הקריאה נשמרה, אך המסמך לא נוצר: ' + (doc.error || 'שגיאה לא ידועה'));
     }
 
+    let failedUploads = 0;
+    if(!result.skippedCall && result.id && filesToUpload.length){
+      for(let i=0;i<filesToUpload.length;i++){
+        btn.textContent = `מעלה קבצים ${i+1}/${filesToUpload.length}...`;
+        try{ await uploadOwnerGuidanceFile(result.id, filesToUpload[i]); }
+        catch(uploadErr){ failedUploads++; }
+      }
+    }
+
     let sms = {success:true, skipped:true};
     if(!result.skippedCall && payload.assignedTechnician){
       btn.textContent = 'שולח SMS...';
@@ -1258,6 +1355,8 @@ document.getElementById('callForm').addEventListener('submit', async (e)=>{
     }
 
     document.getElementById('callForm').reset();
+    pendingGuidanceFiles = [];
+    renderPendingGuidance();
     workTypeVal = 'תיקון';
     document.querySelectorAll('#workTypePills .pill').forEach(b=> b.classList.toggle('active', b.dataset.val === workTypeVal));
     renderTechUI();
@@ -1266,7 +1365,9 @@ document.getElementById('callForm').addEventListener('submit', async (e)=>{
     completed = true;
 
     const baseMessage = `✓ נשמר. מספר מסמך: ${doc.docNumber}`;
-    if(!sms.success){
+    if(failedUploads){
+      showToast(`${baseMessage}. ${failedUploads} קבצים לא הועלו — אפשר להוסיף אותם בכרטיס הקריאה`, 10000);
+    }else if(!sms.success){
       showToast(`${baseMessage}. ה-SMS לא נשלח: ${sms.error || 'שגיאה לא ידועה'}`, 9000);
     }else if(result.skippedCall || sms.skipped){
       showToast(`${baseMessage} (לא נדרש SMS)`, 7000);

@@ -419,11 +419,9 @@
       </a>
     </div>
     <div class="detail-row" id="dNotesRow"><b>הערות:</b> <span id="dNotes"></span></div>
-    <div id="ownerPhotoRow" style="display:none; margin-top:10px;">
-      <label style="margin-bottom:6px;">📷 תמונת הכוונה מהבעלים</label>
-      <a id="ownerPhotoLink" href="#" target="_blank" rel="noopener">
-        <img id="ownerPhotoImg" src="" alt="תמונת הכוונה" style="width:100%;border-radius:10px;border:1px solid var(--line);">
-      </a>
+    <div id="ownerGuidanceRow" style="display:none; margin-top:10px;">
+      <label style="margin-bottom:6px;">📎 קבצי הכוונה מהבעלים</label>
+      <div id="ownerGuidanceList" class="media-list"></div>
     </div>
 
     <button type="button" class="onway-btn" id="onWayBtn">🚗 בדרך אליך - עדכן לקוח ב-SMS</button>
@@ -845,15 +843,7 @@ function openDetail(id){
     notesRow.style.display='none';
   }
 
-  const ownerPhotoRow = document.getElementById('ownerPhotoRow');
-  const ownerPhotoUrl = c['תמונת הכוונה מהבעלים'];
-  if(ownerPhotoUrl){
-    ownerPhotoRow.style.display = '';
-    document.getElementById('ownerPhotoLink').href = ownerPhotoUrl;
-    document.getElementById('ownerPhotoImg').src = driveThumbnailUrl(ownerPhotoUrl);
-  }else{
-    ownerPhotoRow.style.display = 'none';
-  }
+  renderOwnerGuidance(c['תמונת הכוונה מהבעלים']);
 
   document.getElementById('workDone').value = c['מה בוצע'] || '';
   document.getElementById('techPrice').value = c['מחיר טכנאי'] || '';
@@ -1050,6 +1040,28 @@ function renderMediaList(rawLinks){
     <div class="media-item">
       <a href="${escapeAttr(url)}" target="_blank" rel="noopener">📎 קובץ מצורף ${i+1}</a>
     </div>`).join('');
+}
+
+function parseOwnerGuidance(entry){
+  const raw = String(entry || '').trim();
+  const marker = raw.indexOf('#media=');
+  if(marker < 0) return {url:raw, mime:'image/jpeg', name:''};
+  const url = raw.slice(0, marker);
+  const params = new URLSearchParams(raw.slice(marker + 1));
+  return {url, mime:params.get('media') || '', name:params.get('name') || ''};
+}
+
+function renderOwnerGuidance(rawLinks){
+  const row = document.getElementById('ownerGuidanceRow');
+  const list = document.getElementById('ownerGuidanceList');
+  const entries = String(rawLinks || '').split('\n').map(s=>s.trim()).filter(Boolean).map(parseOwnerGuidance);
+  row.style.display = entries.length ? '' : 'none';
+  list.innerHTML = entries.map((item,i)=>{
+    const isVideo = item.mime.startsWith('video/');
+    const isAudio = item.mime.startsWith('audio/') || /\.(opus|ogg|m4a|aac|mp3|wav)$/i.test(item.name);
+    const icon = isVideo ? '🎬' : isAudio ? '🎧' : '🖼️';
+    return `<div class="media-item"><a href="${escapeAttr(item.url)}" target="_blank" rel="noopener">${icon} ${escapeHtml(item.name || `קובץ הכוונה ${i+1}`)}</a></div>`;
+  }).join('');
 }
 
 mediaUploadBtn.addEventListener('click', ()=>{
