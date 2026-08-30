@@ -911,14 +911,14 @@ function renderList(calls){
           <div><b>כתובת:</b> ${c['כתובת'] ? `<a href="https://waze.com/ul?q=${encodeURIComponent(c['כתובת'])}&navigate=yes" target="_blank" rel="noopener">${escapeHtml(c['כתובת'])} 🧭</a>` : ''}</div>
           <div><b>טלפון:</b> ${c['טלפון'] ? `<a href="tel:${escapeAttr(c['טלפון'])}">${escapeHtml(c['טלפון'])}</a>` : ''}</div>
           <div><b>תקלה:</b> ${escapeHtml(c['סוג תקלה']||'')}</div>
-          <div><b>טכנאי:</b> ${assignedTech ? escapeHtml(assignedTech) : 'לא משויך'}</div>
+          <div><b>טכנאי:</b> ${assignedTech ? escapeHtml(assignedTech) : '<span style="color:#B7352A;font-weight:800;">לא משויך — יש לבחור טכנאי למטה</span>'}</div>
         </div>
         ${waitLabel ? `<div class="wait-badge ${waitClass}">⏱ ${waitLabel}</div>` : ''}
         ${workDone}
         ${mediaBox}
         ${priceBox}
         <div class="assign-row">
-          <span class="assign-label">שייך / העבר ל:</span>
+          <span class="assign-label">${assignedTech ? 'שייך / העבר ל:' : 'בחר טכנאי ושייך:'}</span>
           ${assignPills}
         </div>
         <div class="edit-row">
@@ -1849,7 +1849,12 @@ const OWNER_VIEW_LOADED = {};
 
 function loadOwnerViewData(viewName){
   if(viewName === 'new-call' && !OWNER_VIEW_LOADED.technicians){ loadTechnicians(); OWNER_VIEW_LOADED.technicians=true; }
-  if(viewName === 'calls' && !OWNER_VIEW_LOADED.calls){ loadCalls(); OWNER_VIEW_LOADED.calls=true; }
+  if(viewName === 'calls' && !OWNER_VIEW_LOADED.calls){
+    OWNER_VIEW_LOADED.calls=true;
+    // חייבים לטעון קודם את רשימת הטכנאים, אחרת בקריאה לא משויכת אין כפתורי שיוך.
+    loadTechnicians().then(()=>loadCalls());
+    OWNER_VIEW_LOADED.technicians=true;
+  }
   if(viewName === 'collection' && !OWNER_VIEW_LOADED.collection){ loadCollections(); OWNER_VIEW_LOADED.collection=true; }
   if(viewName === 'technicians' && !OWNER_VIEW_LOADED.technicians){ loadTechnicians(); OWNER_VIEW_LOADED.technicians=true; }
 }
