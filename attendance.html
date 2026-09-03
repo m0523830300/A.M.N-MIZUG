@@ -37,6 +37,8 @@ $('logoutBtn').onclick=()=>{localStorage.removeItem('installerToken');localStora
 $('outTime').value=new Date().toTimeString().slice(0,5);if(token)enter();
 if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 </script>
+
+
 <!-- AMN_LIVE_STATUS_V1: משוב חי ואופטימיזציית בקשות -->
 <style>
   #amnLiveStatus{
@@ -162,5 +164,4 @@ if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWork
   window.addEventListener('online',()=>show('החיבור חזר ✓','success',false));
 })();
 </script>
-
 </body></html>
