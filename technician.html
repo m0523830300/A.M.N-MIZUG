@@ -1106,6 +1106,13 @@ async function uploadFiles(inputEl){
         body: JSON.stringify({
           action:'uploadFile',
           id: activeId,
+          technicianName: myName || '',
+          callName: (()=>{
+            const call = allCalls.find(c => String(c['מזהה']) === String(activeId)) || {};
+            const customer = String(call['שם לקוח'] || '').trim();
+            const project = String(call['פרויקט'] || call['כתובת'] || call['סוג תקלה'] || '').trim();
+            return [customer, project].filter(Boolean).join(' - ');
+          })(),
           fileName: file.name,
           mimeType: file.type || 'application/octet-stream',
           base64Data
