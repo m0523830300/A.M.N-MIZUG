@@ -7,4 +7,131 @@ function acUnits(items){const out=[];(items||[]).filter(x=>/מזגן|MULTI|SRK|G
 function pipeFields(j){return acUnits(j.items).map((x,i)=>`<div class="card" style="background:#f7fafc"><b>${esc(x.item)} — יחידה ${x.unit}</b><label>מידת צנרת</label><select id="p_${j.id}_${i}"><option value="">בחירה ידנית</option>${['1/4–3/8','1/4–1/2','1/4–5/8','3/8–5/8','3/8–3/4','3/8–1'].map(p=>`<option ${p===x.pipe?'selected':''}>${p}</option>`).join('')}</select><label>אורך שהותקן בפועל במטרים</label><input id="m_${j.id}_${i}" type="number" min="0" step="0.5" placeholder="לדוגמה: 5"><input type="hidden" id="i_${j.id}_${i}" value="${esc(x.item)}"><input type="hidden" id="u_${j.id}_${i}" value="${x.unit}"></div>`).join('')}
 function render(jobs){$('jobs').innerHTML=jobs.map(j=>`<div class="card" id="j_${j.id}" data-units="${acUnits(j.items).length}"><div class="jobtop"><div class="num">${j.order}</div><div><div class="title">${esc(j.customer)}</div><span class="status">${esc(j.status)}</span></div></div><div class="meta">מסמך ${esc(j.documentNumber)}${j.project?' · '+esc(j.project):''}<br>${esc(j.address)}</div><ul class="items">${(j.items||[]).map(x=>`<li>${x.qty} × ${esc(x.name)}</li>`).join('')}</ul>${pipeFields(j)}<div class="actions"><a class="btn" href="tel:${esc(j.phone)}">התקשר</a><a class="btn" target="_blank" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(j.address)}">ניווט</a>${j.status==='מתוכנן'?`<button class="green full" onclick="start('${j.id}')">התחל עבודה</button>`:''}<label class="btn gray full">העלאת תמונה או סרטון<input class="hidden" type="file" accept="image/*,video/*,audio/*" onchange="upload('${j.id}',this)"></label><label class="full">מצב העבודה<select id="st_${j.id}"><option>בוצע</option><option>בוצע חלקית</option><option>נדחה</option><option>בוטל</option></select></label><textarea id="s_${j.id}" placeholder="מה בוצע אצל הלקוח?">${esc(j.summary)}</textarea><button class="green full" onclick="finish('${j.id}')">שלח סיכום לאישור המשרד</button>${j.folderUrl?`<a class="btn gray full" target="_blank" href="${esc(j.folderUrl)}">פתח תיקיית העבודה</a>`:''}</div></div>`).join('')||'<div class="card empty">אין עבודות לצוות בתאריך הזה.</div>'}
 async function start(id){const r=await post({action:'installerJobStart',token,id});toast(r.success?'העבודה התחילה ✓':r.error);load()}async function finish(id){const summary=$('s_'+id).value.trim();if(!summary)return toast('חובה לכתוב מה בוצע');const count=Number($('j_'+id).dataset.units||0),pipeEntries=[];for(let i=0;i<count;i++){const meters=$('m_'+id+'_'+i).value;if(meters==='')continue;pipeEntries.push({item:$('i_'+id+'_'+i).value,unit:$('u_'+id+'_'+i).value,pipe:$('p_'+id+'_'+i).value,meters:Number(meters)})}const r=await post({action:'installerJobComplete',token,id,summary,workStatus:$('st_'+id).value,pipeEntries});toast(r.success?'הדיווח נשלח לאישור המשרד ✓':r.error);load()}function upload(id,input){const f=input.files[0];if(!f)return;if(f.size>20*1024*1024){toast('הקובץ גדול מ־20MB');return}toast('מעלה את הקובץ…');const rd=new FileReader();rd.onload=async()=>{const r=await post({action:'installerJobUpload',token,id,fileName:f.name,mimeType:f.type,base64Data:String(rd.result).split(',')[1]});toast(r.success?'הקובץ נשמר ✓':r.error);load()};rd.readAsDataURL(f)}$('date').onchange=load;load();
-</script></body></html>
+</script>
+<!-- AMN_LIVE_STATUS_V1: משוב חי ואופטימיזציית בקשות -->
+<style>
+  #amnLiveStatus{
+    position:fixed;z-index:99999;left:50%;bottom:max(18px,env(safe-area-inset-bottom));
+    transform:translate(-50%,18px);min-width:190px;max-width:calc(100vw - 28px);
+    padding:11px 18px;border-radius:999px;background:#153E6F;color:#fff;
+    box-shadow:0 8px 28px rgba(11,42,80,.24);font-family:'Heebo',Arial,sans-serif;
+    font-size:14px;font-weight:700;text-align:center;opacity:0;pointer-events:none;
+    transition:opacity .18s ease,transform .18s ease
+  }
+  #amnLiveStatus.show{opacity:1;transform:translate(-50%,0)}
+  #amnLiveStatus.success{background:#178A4C}
+  #amnLiveStatus.error{background:#B7352A}
+  #amnLiveStatus .amn-spinner{
+    display:inline-block;width:14px;height:14px;margin-left:8px;vertical-align:-2px;
+    border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;
+    animation:amnSpin .7s linear infinite
+  }
+  @keyframes amnSpin{to{transform:rotate(360deg)}}
+  button.amn-busy,[role="button"].amn-busy{opacity:.72;cursor:wait!important}
+</style>
+<script>
+(function(){
+  if(window.__amnLiveStatusInstalled) return;
+  window.__amnLiveStatusInstalled=true;
+
+  const status=document.createElement('div');
+  status.id='amnLiveStatus';
+  status.setAttribute('role','status');
+  status.setAttribute('aria-live','polite');
+  document.body.appendChild(status);
+
+  let hideTimer=0;
+  let activeRequests=0;
+  const inFlightReads=new Map();
+  const nativeFetch=window.fetch.bind(window);
+
+  const actionLabels={
+    uploadFile:['מעלה קובץ…','הקובץ הועלה ✓'],
+    uploadOwnerPhoto:['מעלה קובץ…','הקובץ הועלה ✓'],
+    recordPayment:['שומר תשלום…','התשלום נשמר ✓'],
+    notifyCustomerOnWay:['שולח הודעה…','ההודעה נשלחה ✓'],
+    updateStatus:['מעדכן סטטוס…','הסטטוס עודכן ✓'],
+    saveCall:['שומר קריאה…','הקריאה נשמרה ✓'],
+    createCall:['פותח קריאה…','הקריאה נפתחה ✓'],
+    checkIn:['שומר כניסה…','הכניסה נשמרה ✓'],
+    checkOut:['שומר יציאה…','היציאה נשמרה ✓'],
+    saveAttendance:['שומר דיווח…','הדיווח נשמר ✓'],
+    saveWork:['שומר עבודה…','העבודה נשמרה ✓'],
+    saveTask:['שומר משימה…','המשימה נשמרה ✓'],
+    completeTask:['מסמן כהושלם…','המשימה הושלמה ✓']
+  };
+
+  function show(message,type,keep){
+    clearTimeout(hideTimer);
+    status.className='show '+(type||'');
+    status.innerHTML=(type==='loading'?'<span class="amn-spinner"></span>':'')+
+      String(message||'');
+    if(!keep) hideTimer=setTimeout(()=>status.className='',type==='error'?4200:1900);
+  }
+  window.showAppStatus=function(message,type){
+    show(message,type||'success',false);
+  };
+
+  function getRequestInfo(input,init){
+    let action='';
+    let body=init&&typeof init.body==='string'?init.body:'';
+    if(body){
+      try{ action=JSON.parse(body).action||''; }catch(e){}
+    }
+    const method=String((init&&init.method)||'GET').toUpperCase();
+    const labels=actionLabels[action]||
+      (/^(get|list|load|login|validate|check)/i.test(action)
+        ?['טוען נתונים…','הנתונים עודכנו ✓']
+        :[method==='GET'?'טוען…':'מבצע פעולה…','הפעולה הושלמה ✓']);
+    const isRead=method==='GET'||/^(get|list|load|login|validate|check)/i.test(action);
+    const url=typeof input==='string'?input:(input&&input.url)||'';
+    return {action,method,body,labels,isRead,key:url+'|'+body};
+  }
+
+  window.fetch=function(input,init){
+    const info=getRequestInfo(input,init||{});
+    const activeButton=document.activeElement&&
+      document.activeElement.closest?document.activeElement.closest('button,[role="button"]'):null;
+
+    if(info.isRead&&inFlightReads.has(info.key)){
+      return inFlightReads.get(info.key).then(r=>r.clone());
+    }
+
+    if(activeButton){
+      activeButton.classList.add('amn-busy');
+      if('disabled' in activeButton) activeButton.disabled=true;
+    }
+    activeRequests++;
+    show(info.labels[0],'loading',true);
+
+    const request=nativeFetch(input,init).then(async response=>{
+      let payload=null;
+      try{ payload=await response.clone().json(); }catch(e){}
+      if(!response.ok||(payload&&payload.success===false)){
+        throw Object.assign(new Error((payload&&payload.error)||'הפעולה לא הושלמה'),{response});
+      }
+      show(info.labels[1],'success',false);
+      return response;
+    }).catch(err=>{
+      show((err&&err.message)||'אירעה תקלה. אפשר לנסות שוב.','error',false);
+      throw err;
+    }).finally(()=>{
+      activeRequests=Math.max(0,activeRequests-1);
+      if(activeButton){
+        activeButton.classList.remove('amn-busy');
+        if('disabled' in activeButton) activeButton.disabled=false;
+      }
+      if(info.isRead) setTimeout(()=>inFlightReads.delete(info.key),500);
+    });
+
+    if(info.isRead) inFlightReads.set(info.key,request);
+    else inFlightReads.clear();
+    return info.isRead?request.then(r=>r.clone()):request;
+  };
+
+  window.addEventListener('offline',()=>show('אין חיבור לאינטרנט','error',false));
+  window.addEventListener('online',()=>show('החיבור חזר ✓','success',false));
+})();
+</script>
+
+</body></html>
