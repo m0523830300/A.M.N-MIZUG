@@ -1,5 +1,5 @@
 // מטמון מהיר לקבצי הממשק בלבד. נתוני העסק ממשיכים להגיע תמיד מהשרת.
-const STATIC_CACHE = 'amn-static-v2';
+const STATIC_CACHE = 'amn-static-v3';
 
 self.addEventListener('install', event => {
   self.skipWaiting();

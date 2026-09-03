@@ -1,4 +1,193 @@
-<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ניהול מתקינים</title><style>body{margin:0;background:#f5f8f9;font-family:Arial;color:#142229}header{background:#153e6f;color:#fff;padding:24px}.wrap{max-width:600px;margin:auto;padding:18px}.card{background:#fff;border:1px solid #dfe7ea;border-radius:15px;padding:18px;margin-bottom:14px}input{width:100%;box-sizing:border-box;padding:12px;border:1px solid #ccd8dd;border-radius:9px;margin:5px 0 10px;font-size:15px}button{border:0;border-radius:9px;padding:13px 18px;background:#153e6f;color:#fff;font-weight:700}.row{padding:11px 0;border-bottom:1px solid #e5ebed}.muted{color:#60737c;font-size:13px}.hidden{display:none}</style></head><body><header><h2>ניהול מתקינים — נוכחות</h2></header><div class="wrap"><div class="card" id="login"><input id="pin" type="password" inputmode="numeric" placeholder="קוד בעלים"><button id="loginBtn">כניסה</button></div><div id="panel" class="hidden"><div class="card"><h3>הוספת מתקין</h3><input id="name" placeholder="שם המתקין"><input id="phone" type="tel" placeholder="טלפון לקבלת SMS"><input id="workerPin" inputmode="numeric" maxlength="6" placeholder="קוד אישי קבוע"><button id="addBtn">שמור מתקין</button><p class="muted" id="msg"></p></div><div class="card"><h3>מתקינים פעילים</h3><div id="list"></div></div><a href="owner.html">חזרה למסך הבעלים</a></div></div><script>
-const API='https://script.google.com/macros/s/AKfycbw0fAfYyK9gfViAaVFs0G1HPNguFjdAU4bDt6HCIs_LuOzKuu8lKIM0mLP48gIfeZ-Kwg/exec';let token=sessionStorage.getItem('installerAdminToken')||'',installers=[];const $=x=>document.getElementById(x);async function post(x){const r=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(x)});return r.json()}function render(){ $('list').innerHTML=installers.map(x=>`<div class="row"><b>${x.name}</b><div class="muted">${x.phone}</div></div>`).join('')||'אין מתקינים';sessionStorage.setItem('cachedInstallers',JSON.stringify(installers)) }async function load(){try{const cached=JSON.parse(sessionStorage.getItem('cachedInstallers')||'[]');if(cached.length){installers=cached;render()}$('login').classList.add('hidden');$('panel').classList.remove('hidden');const r=await post({action:'attendanceInstallers',ownerToken:token});if(!r.success)throw Error(r.error);installers=r.installers||[];render()}catch(e){$('msg').textContent=e.message||'שגיאת חיבור'}} $('loginBtn').onclick=async()=>{try{const r=await post({action:'collectionLogin',pin:$('pin').value});if(!r.success)throw Error(r.error||'קוד שגוי');token=r.token;sessionStorage.setItem('installerAdminToken',token);load()}catch(e){alert(e.message)}};$('addBtn').onclick=async()=>{const name=$('name').value.trim(),phone=$('phone').value.trim(),pin=$('workerPin').value.trim();if(!name||!phone||pin.length<4){$('msg').textContent='צריך למלא שם, טלפון וקוד';return}const btn=$('addBtn');btn.disabled=true;btn.textContent='שומר...';$('msg').textContent='';try{const r=await post({action:'attendanceAddInstaller',ownerToken:token,name,phone,pin});if(!r.success)throw Error(r.error||'השמירה נכשלה');const normalizedPhone=phone.replace(/\D/g,'').replace(/^972/,'0');const existing=installers.find(x=>x.name===name);if(existing)existing.phone=normalizedPhone;else installers.push({name,phone:normalizedPhone,active:true});render();$('msg').textContent='המתקין נשמר ✓';$('name').value=$('phone').value=$('workerPin').value=''}catch(e){$('msg').textContent='לא נשמר: '+e.message}finally{btn.disabled=false;btn.textContent='שמור מתקין'}};if(token)load();
-</script>  <script defer src="app-status.js?v=2"></script>
-</body></html>
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>ניהול מתקינים</title>
+    <style>
+      body {
+        margin: 0;
+        background: #f5f8f9;
+        font-family: Arial;
+        color: #142229;
+      }
+      header {
+        background: #153e6f;
+        color: #fff;
+        padding: 24px;
+      }
+      .wrap {
+        max-width: 600px;
+        margin: auto;
+        padding: 18px;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid #dfe7ea;
+        border-radius: 15px;
+        padding: 18px;
+        margin-bottom: 14px;
+      }
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 12px;
+        border: 1px solid #ccd8dd;
+        border-radius: 9px;
+        margin: 5px 0 10px;
+        font-size: 15px;
+      }
+      button {
+        border: 0;
+        border-radius: 9px;
+        padding: 13px 18px;
+        background: #153e6f;
+        color: #fff;
+        font-weight: 700;
+      }
+      .row {
+        padding: 11px 0;
+        border-bottom: 1px solid #e5ebed;
+      }
+      .muted {
+        color: #60737c;
+        font-size: 13px;
+      }
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <header><h2>ניהול מתקינים ועבודות</h2></header>
+    <div class="wrap">
+      <div class="card" id="login">
+        <input
+          id="pin"
+          type="password"
+          inputmode="numeric"
+          placeholder="קוד בעלים"
+        /><button id="loginBtn">כניסה</button>
+      </div>
+      <div id="panel" class="hidden">
+        <div class="card">
+          <h3>הוספת מתקין</h3>
+          <input id="name" placeholder="שם המתקין" /><input
+            id="phone"
+            type="tel"
+            placeholder="טלפון לקבלת SMS"
+          /><input
+            id="workerPin"
+            inputmode="numeric"
+            maxlength="6"
+            placeholder="קוד אישי קבוע"
+          /><button id="addBtn">שמור מתקין</button>
+          <p class="muted" id="msg"></p>
+        </div>
+        <div class="card">
+          <h3>מתקינים פעילים</h3>
+          <div id="list"></div>
+        </div>
+        <a href="owner.html">חזרה למסך הבעלים</a>
+      </div>
+    </div>
+    <script>
+      const API =
+        "https://script.google.com/macros/s/AKfycbw0fAfYyK9gfViAaVFs0G1HPNguFjdAU4bDt6HCIs_LuOzKuu8lKIM0mLP48gIfeZ-Kwg/exec";
+      let token = sessionStorage.getItem("installerAdminToken") || "",
+        installers = [];
+      const $ = (x) => document.getElementById(x);
+      async function post(x) {
+        const r = await fetch(API, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify(x),
+        });
+        return r.json();
+      }
+      function render() {
+        $("list").innerHTML =
+          installers
+            .map(
+              (x) =>
+                `<div class="row"><b>${x.name}</b><div class="muted">${x.phone}${x.team ? " · " + x.team : ""}</div>${x.workUrl ? `<p><a href="${x.workUrl}" target="_blank"><button>צפה בעבודות</button></a> <a href="${x.attendanceUrl}" target="_blank"><button>צפה בנוכחות</button></a></p>` : ""}</div>`,
+            )
+            .join("") || "אין מתקינים";
+        sessionStorage.setItem("cachedInstallers", JSON.stringify(installers));
+      }
+      async function load() {
+        try {
+          const cached = JSON.parse(
+            sessionStorage.getItem("cachedInstallers") || "[]",
+          );
+          if (cached.length) {
+            installers = cached;
+            render();
+          }
+          $("login").classList.add("hidden");
+          $("panel").classList.remove("hidden");
+          const r = await post({
+            action: "attendanceInstallers",
+            ownerToken: token,
+          });
+          if (!r.success) throw Error(r.error);
+          installers = r.installers || [];
+          render();
+        } catch (e) {
+          $("msg").textContent = e.message || "שגיאת חיבור";
+        }
+      }
+      $("loginBtn").onclick = async () => {
+        try {
+          const r = await post({
+            action: "collectionLogin",
+            pin: $("pin").value,
+          });
+          if (!r.success) throw Error(r.error || "קוד שגוי");
+          token = r.token;
+          sessionStorage.setItem("installerAdminToken", token);
+          load();
+        } catch (e) {
+          alert(e.message);
+        }
+      };
+      $("addBtn").onclick = async () => {
+        const name = $("name").value.trim(),
+          phone = $("phone").value.trim(),
+          pin = $("workerPin").value.trim();
+        if (!name || !phone || pin.length < 4) {
+          $("msg").textContent = "צריך למלא שם, טלפון וקוד";
+          return;
+        }
+        const btn = $("addBtn");
+        btn.disabled = true;
+        btn.textContent = "שומר...";
+        $("msg").textContent = "";
+        try {
+          const r = await post({
+            action: "attendanceAddInstaller",
+            ownerToken: token,
+            name,
+            phone,
+            pin,
+          });
+          if (!r.success) throw Error(r.error || "השמירה נכשלה");
+          const normalizedPhone = phone.replace(/\D/g, "").replace(/^972/, "0");
+          const existing = installers.find((x) => x.name === name);
+          if (existing) existing.phone = normalizedPhone;
+          else installers.push({ name, phone: normalizedPhone, active: true });
+          render();
+          $("msg").textContent = "המתקין נשמר ✓";
+          $("name").value = $("phone").value = $("workerPin").value = "";
+        } catch (e) {
+          $("msg").textContent = "לא נשמר: " + e.message;
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "שמור מתקין";
+        }
+      };
+      if (token) load();
+    </script>
+    <script defer src="app-status.js?v=2"></script>
+  </body>
+</html>
