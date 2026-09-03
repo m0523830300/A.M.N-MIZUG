@@ -36,4 +36,5 @@ $('stillBtn').onclick=async()=>{const r=await post({action:'attendanceStillWorki
 $('logoutBtn').onclick=()=>{localStorage.removeItem('installerToken');localStorage.removeItem('installerName');location.reload()};
 $('outTime').value=new Date().toTimeString().slice(0,5);if(token)enter();
 if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
-</script></body></html>
+</script>  <script defer src="app-status.js?v=2"></script>
+</body></html>
