@@ -1,3 +1,130 @@
 <!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ניהול מתקינים</title><style>body{margin:0;background:#f5f8f9;font-family:Arial;color:#142229}header{background:#153e6f;color:#fff;padding:24px}.wrap{max-width:600px;margin:auto;padding:18px}.card{background:#fff;border:1px solid #dfe7ea;border-radius:15px;padding:18px;margin-bottom:14px}input{width:100%;box-sizing:border-box;padding:12px;border:1px solid #ccd8dd;border-radius:9px;margin:5px 0 10px;font-size:15px}button{border:0;border-radius:9px;padding:13px 18px;background:#153e6f;color:#fff;font-weight:700}.row{padding:11px 0;border-bottom:1px solid #e5ebed}.muted{color:#60737c;font-size:13px}.hidden{display:none}</style></head><body><header><h2>ניהול מתקינים — נוכחות</h2></header><div class="wrap"><div class="card" id="login"><input id="pin" type="password" inputmode="numeric" placeholder="קוד בעלים"><button id="loginBtn">כניסה</button></div><div id="panel" class="hidden"><div class="card"><h3>הוספת מתקין</h3><input id="name" placeholder="שם המתקין"><input id="phone" type="tel" placeholder="טלפון לקבלת SMS"><input id="workerPin" inputmode="numeric" maxlength="6" placeholder="קוד אישי קבוע"><button id="addBtn">שמור מתקין</button><p class="muted" id="msg"></p></div><div class="card"><h3>מתקינים פעילים</h3><div id="list"></div></div><a href="owner.html">חזרה למסך הבעלים</a></div></div><script>
 const API='https://script.google.com/macros/s/AKfycbw0fAfYyK9gfViAaVFs0G1HPNguFjdAU4bDt6HCIs_LuOzKuu8lKIM0mLP48gIfeZ-Kwg/exec';let token=sessionStorage.getItem('installerAdminToken')||'',installers=[];const $=x=>document.getElementById(x);async function post(x){const r=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(x)});return r.json()}function render(){ $('list').innerHTML=installers.map(x=>`<div class="row"><b>${x.name}</b><div class="muted">${x.phone}</div></div>`).join('')||'אין מתקינים';sessionStorage.setItem('cachedInstallers',JSON.stringify(installers)) }async function load(){try{const cached=JSON.parse(sessionStorage.getItem('cachedInstallers')||'[]');if(cached.length){installers=cached;render()}$('login').classList.add('hidden');$('panel').classList.remove('hidden');const r=await post({action:'attendanceInstallers',ownerToken:token});if(!r.success)throw Error(r.error);installers=r.installers||[];render()}catch(e){$('msg').textContent=e.message||'שגיאת חיבור'}} $('loginBtn').onclick=async()=>{try{const r=await post({action:'collectionLogin',pin:$('pin').value});if(!r.success)throw Error(r.error||'קוד שגוי');token=r.token;sessionStorage.setItem('installerAdminToken',token);load()}catch(e){alert(e.message)}};$('addBtn').onclick=async()=>{const name=$('name').value.trim(),phone=$('phone').value.trim(),pin=$('workerPin').value.trim();if(!name||!phone||pin.length<4){$('msg').textContent='צריך למלא שם, טלפון וקוד';return}const btn=$('addBtn');btn.disabled=true;btn.textContent='שומר...';$('msg').textContent='';try{const r=await post({action:'attendanceAddInstaller',ownerToken:token,name,phone,pin});if(!r.success)throw Error(r.error||'השמירה נכשלה');const normalizedPhone=phone.replace(/\D/g,'').replace(/^972/,'0');const existing=installers.find(x=>x.name===name);if(existing)existing.phone=normalizedPhone;else installers.push({name,phone:normalizedPhone,active:true});render();$('msg').textContent='המתקין נשמר ✓';$('name').value=$('phone').value=$('workerPin').value=''}catch(e){$('msg').textContent='לא נשמר: '+e.message}finally{btn.disabled=false;btn.textContent='שמור מתקין'}};if(token)load();
-</script></body></html>
+</script>
+<!-- AMN_LIVE_STATUS_V1: משוב חי ואופטימיזציית בקשות -->
+<style>
+  #amnLiveStatus{
+    position:fixed;z-index:99999;left:50%;bottom:max(18px,env(safe-area-inset-bottom));
+    transform:translate(-50%,18px);min-width:190px;max-width:calc(100vw - 28px);
+    padding:11px 18px;border-radius:999px;background:#153E6F;color:#fff;
+    box-shadow:0 8px 28px rgba(11,42,80,.24);font-family:'Heebo',Arial,sans-serif;
+    font-size:14px;font-weight:700;text-align:center;opacity:0;pointer-events:none;
+    transition:opacity .18s ease,transform .18s ease
+  }
+  #amnLiveStatus.show{opacity:1;transform:translate(-50%,0)}
+  #amnLiveStatus.success{background:#178A4C}
+  #amnLiveStatus.error{background:#B7352A}
+  #amnLiveStatus .amn-spinner{
+    display:inline-block;width:14px;height:14px;margin-left:8px;vertical-align:-2px;
+    border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;
+    animation:amnSpin .7s linear infinite
+  }
+  @keyframes amnSpin{to{transform:rotate(360deg)}}
+  button.amn-busy,[role="button"].amn-busy{opacity:.72;cursor:wait!important}
+</style>
+<script>
+(function(){
+  if(window.__amnLiveStatusInstalled) return;
+  window.__amnLiveStatusInstalled=true;
+
+  const status=document.createElement('div');
+  status.id='amnLiveStatus';
+  status.setAttribute('role','status');
+  status.setAttribute('aria-live','polite');
+  document.body.appendChild(status);
+
+  let hideTimer=0;
+  let activeRequests=0;
+  const inFlightReads=new Map();
+  const nativeFetch=window.fetch.bind(window);
+
+  const actionLabels={
+    uploadFile:['מעלה קובץ…','הקובץ הועלה ✓'],
+    uploadOwnerPhoto:['מעלה קובץ…','הקובץ הועלה ✓'],
+    recordPayment:['שומר תשלום…','התשלום נשמר ✓'],
+    notifyCustomerOnWay:['שולח הודעה…','ההודעה נשלחה ✓'],
+    updateStatus:['מעדכן סטטוס…','הסטטוס עודכן ✓'],
+    saveCall:['שומר קריאה…','הקריאה נשמרה ✓'],
+    createCall:['פותח קריאה…','הקריאה נפתחה ✓'],
+    checkIn:['שומר כניסה…','הכניסה נשמרה ✓'],
+    checkOut:['שומר יציאה…','היציאה נשמרה ✓'],
+    saveAttendance:['שומר דיווח…','הדיווח נשמר ✓'],
+    saveWork:['שומר עבודה…','העבודה נשמרה ✓'],
+    saveTask:['שומר משימה…','המשימה נשמרה ✓'],
+    completeTask:['מסמן כהושלם…','המשימה הושלמה ✓']
+  };
+
+  function show(message,type,keep){
+    clearTimeout(hideTimer);
+    status.className='show '+(type||'');
+    status.innerHTML=(type==='loading'?'<span class="amn-spinner"></span>':'')+
+      String(message||'');
+    if(!keep) hideTimer=setTimeout(()=>status.className='',type==='error'?4200:1900);
+  }
+  window.showAppStatus=function(message,type){
+    show(message,type||'success',false);
+  };
+
+  function getRequestInfo(input,init){
+    let action='';
+    let body=init&&typeof init.body==='string'?init.body:'';
+    if(body){
+      try{ action=JSON.parse(body).action||''; }catch(e){}
+    }
+    const method=String((init&&init.method)||'GET').toUpperCase();
+    const labels=actionLabels[action]||
+      (/^(get|list|load|login|validate|check)/i.test(action)
+        ?['טוען נתונים…','הנתונים עודכנו ✓']
+        :[method==='GET'?'טוען…':'מבצע פעולה…','הפעולה הושלמה ✓']);
+    const isRead=method==='GET'||/^(get|list|load|login|validate|check)/i.test(action);
+    const url=typeof input==='string'?input:(input&&input.url)||'';
+    return {action,method,body,labels,isRead,key:url+'|'+body};
+  }
+
+  window.fetch=function(input,init){
+    const info=getRequestInfo(input,init||{});
+    const activeButton=document.activeElement&&
+      document.activeElement.closest?document.activeElement.closest('button,[role="button"]'):null;
+
+    if(info.isRead&&inFlightReads.has(info.key)){
+      return inFlightReads.get(info.key).then(r=>r.clone());
+    }
+
+    if(activeButton){
+      activeButton.classList.add('amn-busy');
+      if('disabled' in activeButton) activeButton.disabled=true;
+    }
+    activeRequests++;
+    show(info.labels[0],'loading',true);
+
+    const request=nativeFetch(input,init).then(async response=>{
+      let payload=null;
+      try{ payload=await response.clone().json(); }catch(e){}
+      if(!response.ok||(payload&&payload.success===false)){
+        throw Object.assign(new Error((payload&&payload.error)||'הפעולה לא הושלמה'),{response});
+      }
+      show(info.labels[1],'success',false);
+      return response;
+    }).catch(err=>{
+      show((err&&err.message)||'אירעה תקלה. אפשר לנסות שוב.','error',false);
+      throw err;
+    }).finally(()=>{
+      activeRequests=Math.max(0,activeRequests-1);
+      if(activeButton){
+        activeButton.classList.remove('amn-busy');
+        if('disabled' in activeButton) activeButton.disabled=false;
+      }
+      if(info.isRead) setTimeout(()=>inFlightReads.delete(info.key),500);
+    });
+
+    if(info.isRead) inFlightReads.set(info.key,request);
+    else inFlightReads.clear();
+    return info.isRead?request.then(r=>r.clone()):request;
+  };
+
+  window.addEventListener('offline',()=>show('אין חיבור לאינטרנט','error',false));
+  window.addEventListener('online',()=>show('החיבור חזר ✓','success',false));
+})();
+</script>
+
+</body></html>
