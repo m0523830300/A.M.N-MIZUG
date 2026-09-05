@@ -102,6 +102,9 @@
       .green {
         background: #067647;
       }
+      .whatsapp {
+        background: #128c4a;
+      }
       .gray {
         background: #64748b;
       }
@@ -251,6 +254,9 @@
       <section id="jobsView">
         <div class="card">
           <label>תאריך עבודה</label><input id="date" type="date" />
+          <button id="refreshBtn" class="gray" style="width:100%;margin-top:10px" onclick="load(true)">
+            רענון עבודות
+          </button>
         </div>
         <div id="jobs"></div>
       </section>
@@ -287,6 +293,9 @@
       const API =
         "https://script.google.com/macros/s/AKfycbw0fAfYyK9gfViAaVFs0G1HPNguFjdAU4bDt6HCIs_LuOzKuu8lKIM0mLP48gIfeZ-Kwg/exec";
       const $ = (id) => document.getElementById(id);
+      const JOBS_REFRESH_AFTER_MS = 60 * 60 * 1000;
+      let lastJobsLoadAt = Number(localStorage.getItem("installerJobsLastLoadAt") || 0);
+      let jobsLoading = false;
       let token =
         new URLSearchParams(location.search).get("token") ||
         localStorage.getItem("installerToken") ||
@@ -313,6 +322,29 @@
               "'": "&#39;",
             })[c],
         );
+      }
+      function phoneDigits(phone) {
+        return String(phone || "").replace(/\D/g, "");
+      }
+      function phoneForCall(phone) {
+        const digits = phoneDigits(phone);
+        return digits.startsWith("972") ? "+" + digits : digits;
+      }
+      function phoneForWhatsApp(phone) {
+        let digits = phoneDigits(phone);
+        if (digits.startsWith("0")) digits = "972" + digits.slice(1);
+        return digits;
+      }
+      function contactButtons(phone) {
+        const shown = esc(phone);
+        const call = phoneForCall(phone);
+        const whatsapp = phoneForWhatsApp(phone);
+        if (!call)
+          return '<div class="note full">לא הוזן מספר טלפון ללקוח</div>';
+        return `<a class="btn whatsapp" target="_blank" rel="noopener" href="https://wa.me/${whatsapp}">WhatsApp</a><a class="btn" href="tel:${call}">התקשר · ${shown}</a>`;
+      }
+      function wazeUrl(address) {
+        return "https://waze.com/ul?q=" + encodeURIComponent(address || "") + "&navigate=yes";
       }
       function toast(x) {
         $("toast").textContent = x;
@@ -429,8 +461,15 @@
           b.textContent = "סיום ושמירת יציאה";
         }
       }
-      async function load() {
+      async function load(manual = false) {
         if (!token) return showLogin();
+        if (jobsLoading) return;
+        jobsLoading = true;
+        const refreshButton = $("refreshBtn");
+        if (refreshButton) {
+          refreshButton.disabled = true;
+          refreshButton.textContent = manual ? "מרענן…" : "טוען…";
+        }
         $("login").classList.add("hidden");
         $("app").classList.remove("hidden");
         $("who").textContent = "טוען עבודות…";
@@ -443,10 +482,19 @@
           if (!r.success) throw Error(r.error);
           $("who").textContent = r.name + " · " + r.team;
           render(r.jobs || []);
+          lastJobsLoadAt = Date.now();
+          localStorage.setItem("installerJobsLastLoadAt", String(lastJobsLoadAt));
+          if (manual) toast("העבודות עודכנו ✓");
         } catch (e) {
           $("who").textContent = "לא נטען";
           $("jobs").innerHTML =
             '<div class="card empty">' + esc(e.message) + "</div>";
+        } finally {
+          jobsLoading = false;
+          if (refreshButton) {
+            refreshButton.disabled = false;
+            refreshButton.textContent = "רענון עבודות";
+          }
         }
       }
       function acUnits(items) {
@@ -513,7 +561,7 @@
           jobs
             .map(
               (j) =>
-                `<div class="card" id="j_${j.id}" data-units="${acUnits(j.items).length}"><div class="jobtop"><div class="num">${j.order}</div><div><div class="title">${esc(j.customer)}</div><span class="status">${esc(j.status)}</span></div></div><div class="meta">מסמך ${esc(j.documentNumber)}${j.project ? " · " + esc(j.project) : ""}<br>${esc(j.address)}</div>${installerUnitList(j)}${installerInstructions(j)}${pipeFields(j)}<div class="actions"><a class="btn" href="tel:${esc(j.phone)}">התקשר</a><a class="btn" target="_blank" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(j.address)}">ניווט</a>${j.status === "מתוכנן" ? `<button class="green full" onclick="start('${j.id}')">התחל עבודה</button>` : ""}<label class="btn gray full">העלאת תמונה או סרטון<input class="hidden" type="file" accept="image/*,video/*,audio/*" onchange="upload('${j.id}',this)"></label><label class="full">מצב העבודה<select id="st_${j.id}"><option>בוצע</option><option>בוצע חלקית</option><option>נדחה</option><option>בוטל</option></select></label><textarea id="s_${j.id}" placeholder="מה בוצע אצל הלקוח?">${esc(j.summary)}</textarea><button class="green full" onclick="finish('${j.id}')">שלח סיכום לאישור המשרד</button>${j.folderUrl ? `<a class="btn gray full" target="_blank" href="${esc(j.folderUrl)}">פתח תיקיית העבודה</a>` : ""}</div></div>`,
+                `<div class="card" id="j_${j.id}" data-units="${acUnits(j.items).length}"><div class="jobtop"><div class="num">${j.order}</div><div><div class="title">${esc(j.customer)}</div><span class="status">${esc(j.status)}</span></div></div><div class="meta">מסמך ${esc(j.documentNumber)}${j.project ? " · " + esc(j.project) : ""}<br>${esc(j.address)}${j.phone ? `<br><b>טלפון: ${esc(j.phone)}</b>` : ""}</div>${installerUnitList(j)}${installerInstructions(j)}${pipeFields(j)}<div class="actions">${contactButtons(j.phone)}<a class="btn full" target="_blank" rel="noopener" href="${wazeUrl(j.address)}">ניווט ב־Waze</a>${j.status === "מתוכנן" ? `<button class="green full" onclick="start('${j.id}')">התחל עבודה</button>` : ""}<label class="btn gray full">העלאת תמונה או סרטון<input class="hidden" type="file" accept="image/*,video/*,audio/*" onchange="upload('${j.id}',this)"></label><label class="full">מצב העבודה<select id="st_${j.id}"><option>בוצע</option><option>בוצע חלקית</option><option>נדחה</option><option>בוטל</option></select></label><textarea id="s_${j.id}" placeholder="מה בוצע אצל הלקוח?">${esc(j.summary)}</textarea><button class="green full" onclick="finish('${j.id}')">שלח סיכום לאישור המשרד</button>${j.folderUrl ? `<a class="btn gray full" target="_blank" href="${esc(j.folderUrl)}">פתח תיקיית העבודה</a>` : ""}</div></div>`,
             )
             .join("") ||
           '<div class="card empty">אין עבודות לצוות בתאריך הזה.</div>';
@@ -587,6 +635,14 @@
       $("loginBtn").onclick = loginInstaller;
       $("pin").onkeydown = (e) => { if (e.key === "Enter") loginInstaller(); };
       $("date").onchange = load;
+      document.addEventListener("visibilitychange", () => {
+        if (
+          !document.hidden &&
+          token &&
+          Date.now() - lastJobsLoadAt >= JOBS_REFRESH_AFTER_MS
+        )
+          load();
+      });
       $("outTime").value = new Date().toTimeString().slice(0, 5);
       load();
       if ("serviceWorker" in navigator)
