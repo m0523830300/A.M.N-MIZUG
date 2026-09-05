@@ -61,15 +61,7 @@
   <body>
     <header><h2>ניהול מתקינים ועבודות</h2></header>
     <div class="wrap">
-      <div class="card" id="login">
-        <input
-          id="pin"
-          type="password"
-          inputmode="numeric"
-          placeholder="קוד בעלים"
-        /><button id="loginBtn">כניסה</button>
-      </div>
-      <div id="panel" class="hidden">
+      <div id="panel">
         <div class="card">
           <h3>הוספת מתקין</h3>
           <input id="name" placeholder="שם המתקין" /><input
@@ -94,7 +86,7 @@
     <script>
       const API =
         "https://script.google.com/macros/s/AKfycbw0fAfYyK9gfViAaVFs0G1HPNguFjdAU4bDt6HCIs_LuOzKuu8lKIM0mLP48gIfeZ-Kwg/exec";
-      let token = sessionStorage.getItem("installerAdminToken") || "",
+      let token = "",
         installers = [];
       const $ = (x) => document.getElementById(x);
       async function post(x) {
@@ -124,8 +116,6 @@
             installers = cached;
             render();
           }
-          $("login").classList.add("hidden");
-          $("panel").classList.remove("hidden");
           const r = await post({
             action: "attendanceInstallers",
             ownerToken: token,
@@ -137,20 +127,6 @@
           $("msg").textContent = e.message || "שגיאת חיבור";
         }
       }
-      $("loginBtn").onclick = async () => {
-        try {
-          const r = await post({
-            action: "collectionLogin",
-            pin: $("pin").value,
-          });
-          if (!r.success) throw Error(r.error || "קוד שגוי");
-          token = r.token;
-          sessionStorage.setItem("installerAdminToken", token);
-          load();
-        } catch (e) {
-          alert(e.message);
-        }
-      };
       $("addBtn").onclick = async () => {
         const name = $("name").value.trim(),
           phone = $("phone").value.trim(),
@@ -186,7 +162,7 @@
           btn.textContent = "שמור מתקין";
         }
       };
-      if (token) load();
+      load();
     </script>
     <script defer src="app-status.js?v=2"></script>
   </body>
