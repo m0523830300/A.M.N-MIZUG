@@ -1589,16 +1589,7 @@
           <div></div>
           <button class="refresh" id="collectionRefreshBtn">רענון</button>
         </div>
-        <div class="collection-login" id="collectionLoginBox">
-          <input
-            type="password"
-            inputmode="numeric"
-            id="collectionOwnerPin"
-            placeholder="קוד כניסה לגבייה"
-          />
-          <button type="button" id="collectionLoginBtn">כניסה</button>
-        </div>
-        <div id="collectionProtected" style="display: none">
+        <div id="collectionProtected">
           <div class="collection-summary" id="collectionSummary"></div>
           <div class="collection-tools">
             <input id="collectionSearch" placeholder="חיפוש לקוח..." />
@@ -2951,8 +2942,7 @@
       // מעקב גבייה - פתיחת הודעה ידנית ותיעוד לאחר השליחה
       let COLLECTIONS = [];
       const COLLECTION_PENDING_CHANNEL = {};
-      let COLLECTION_OWNER_TOKEN =
-        sessionStorage.getItem("collectionOwnerToken") || "";
+      let COLLECTION_OWNER_TOKEN = "";
 
       function money(value) {
         return new Intl.NumberFormat("he-IL", {
@@ -2970,11 +2960,6 @@
       }
 
       async function loadCollections() {
-        if (!COLLECTION_OWNER_TOKEN) {
-          document.getElementById("collectionLoginBox").style.display = "flex";
-          document.getElementById("collectionProtected").style.display = "none";
-          return;
-        }
         const list = document.getElementById("collectionList");
         list.innerHTML = `<div class="loading">טוען נתוני גבייה...</div>`;
         try {
@@ -2986,19 +2971,8 @@
           );
           const result = await res.json();
           if (!result.success) {
-            if (result.error && result.error.includes("כניסת")) {
-              COLLECTION_OWNER_TOKEN = "";
-              sessionStorage.removeItem("collectionOwnerToken");
-              document.getElementById("collectionLoginBox").style.display =
-                "flex";
-              document.getElementById("collectionProtected").style.display =
-                "none";
-            }
             throw new Error(result.error || "שגיאה");
           }
-          document.getElementById("collectionLoginBox").style.display = "none";
-          document.getElementById("collectionProtected").style.display =
-            "block";
           COLLECTIONS = result.customers || [];
           renderCollectionSummary(result.summary || {});
           renderCollections();
@@ -3176,37 +3150,9 @@
         }
       }
 
-      async function loginCollections() {
-        const pin = document.getElementById("collectionOwnerPin").value.trim();
-        if (!pin) {
-          showToast("יש להזין קוד כניסה");
-          return;
-        }
-        const result = await postCollectionAction({
-          action: "collectionLogin",
-          pin,
-        });
-        if (!result.success) {
-          showToast(result.error || "הכניסה נכשלה");
-          return;
-        }
-        COLLECTION_OWNER_TOKEN = result.token;
-        sessionStorage.setItem("collectionOwnerToken", result.token);
-        document.getElementById("collectionOwnerPin").value = "";
-        loadCollections();
-      }
-
       document
         .getElementById("collectionRefreshBtn")
         .addEventListener("click", loadCollections);
-      document
-        .getElementById("collectionLoginBtn")
-        .addEventListener("click", loginCollections);
-      document
-        .getElementById("collectionOwnerPin")
-        .addEventListener("keydown", (e) => {
-          if (e.key === "Enter") loginCollections();
-        });
       document
         .getElementById("collectionSearch")
         .addEventListener("input", renderCollections);
