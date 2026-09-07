@@ -822,9 +822,6 @@ function openDetail(id){
   const c = allCalls.find(x => String(x['מזהה']) === String(id));
   if(!c) return;
   activeId = id;
-  // בנק השירותים עשוי להשתנות תוך כדי יום. רענון בעת פתיחת הקריאה
-  // מבטיח שגם פריטים חדשים ייכללו מיד בחיפוש ובסינון.
-  loadPriceList();
   document.getElementById('dName').textContent = c['שם לקוח']||'';
   document.getElementById('dIssue').textContent = c['סוג תקלה']||'';
   const addressEl = document.getElementById('dAddress');
