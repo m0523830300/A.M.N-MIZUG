@@ -921,7 +921,6 @@ function renderList(calls){
           <button type="button" class="edit-btn" data-id="${escapeAttr(id)}">✏️ ערוך פרטים</button>
           <button type="button" class="photo-btn" data-id="${escapeAttr(id)}">📎 הוסף קובץ הכוונה</button>
           <button type="button" class="edit-btn repair-btn" data-id="${escapeAttr(id)}">🔄 השלם מסמך ושלח SMS</button>
-          ${c['סטטוס'] === 'הושלם' ? `<button type="button" class="edit-btn quick-copy-btn" data-id="${escapeAttr(id)}">📋 העתק למפרט עבודות</button>` : ''}
         </div>
         ${renderOwnerGuidanceLinks(c['תמונת הכוונה מהבעלים'])}
         <div class="danger-row">
@@ -953,72 +952,6 @@ function renderList(calls){
   listEl.querySelectorAll('.repair-btn').forEach(btn=>{
     btn.addEventListener('click', ()=> repairCallIntegrations(btn));
   });
-  listEl.querySelectorAll('.quick-copy-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=> copyCallForWorkSheet(btn));
-  });
-}
-
-function cleanTsv(value){
-  return String(value == null ? '' : value).replace(/[\t\r\n]+/g, ' ').trim();
-}
-
-function formatWorkDate(value){
-  const d = value ? new Date(value) : new Date();
-  if(isNaN(d.getTime())) return cleanTsv(value);
-  return new Intl.DateTimeFormat('he-IL', {day:'2-digit',month:'2-digit',year:'numeric'}).format(d);
-}
-
-async function copyCallForWorkSheet(btn){
-  if(btn.disabled) return;
-  const call = allCalls.find(c => String(c['מזהה']) === String(btn.dataset.id));
-  if(!call){ showToast('הקריאה לא נמצאה'); return; }
-  const original = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = 'מכין להעתקה...';
-  try{
-    const docResponse = await fetch(API_URL, {
-      method:'POST',
-      headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body:JSON.stringify({action:'repairCallIntegrations', id:btn.dataset.id})
-    });
-    const docResult = await docResponse.json();
-    if(!docResult.success) throw new Error(docResult.error || 'לא נמצא מספר מסמך');
-
-    let billing = {items:[], additions:[]};
-    try{ billing = JSON.parse(call['נתוני חיוב JSON'] || '{}'); }catch(e){}
-    const items = Array.isArray(billing.items) ? billing.items : [];
-    const additions = Array.isArray(billing.additions) ? billing.additions : [];
-    const detailRows = items.map(x=>({name:x.name, cost:x.techPrice, qty:x.qty || 1}))
-      .concat(additions.map(x=>({name:x.reason, cost:x.amount, qty:1})));
-    if(!detailRows.length) detailRows.push({name:call['מה בוצע'] || call['סוג תקלה'] || 'עבודת שירות', cost:call['מחיר טכנאי'], qty:1});
-
-    // A:W לפי הסדר הקיים ב"מפרט עבודות". מחיר לקוח נשאר ריק;
-    // עלות הטכנאי נכנסת רק לעמודה W (עלות ידני).
-    const rows = detailRows.map((item,index)=>{
-      const cols = Array(23).fill('');
-      cols[0] = call['שם לקוח'];                 // A
-      cols[1] = call['פרויקט'] || '';            // B
-      cols[4] = call['כתובת'];                   // E
-      cols[5] = call['סוג תקלה'];                // F
-      cols[8] = 'בוצע';                          // I
-      cols[11] = index === 0 ? call['מה בוצע'] : ''; // L
-      cols[12] = call['טכנאי משויך'];             // M
-      cols[13] = formatWorkDate(call['תאריך עדכון'] || call['תאריך פתיחה']); // N
-      cols[15] = docResult.docNumber;             // P
-      cols[20] = item.name;                       // U
-      cols[22] = item.cost;                       // W
-      return cols.map(cleanTsv).join('\t');
-    });
-    await navigator.clipboard.writeText(rows.join('\n'));
-    btn.textContent = 'הועתק ✓';
-    showToast('הועתקו שורות מוכנות — הדבק בתא A הראשון במפרט עבודות');
-  }catch(err){
-    showToast('ההעתקה נכשלה: ' + (err.message || err), 6000);
-    btn.textContent = original;
-  }finally{
-    btn.disabled = false;
-    setTimeout(()=>{ if(btn.textContent === 'הועתק ✓') btn.textContent = original; },2200);
-  }
 }
 
 async function repairCallIntegrations(btn){
