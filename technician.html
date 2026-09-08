@@ -250,6 +250,10 @@
     min-height:80px;resize:vertical;
   }
   textarea:focus{outline:none;border-color:var(--accent);background:#fff;}
+  .extra-ac{margin-top:12px;padding:12px;border:1.5px solid var(--line);border-radius:11px;background:#F7FAFC;}
+  .extra-ac-head{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:14px;font-weight:800;color:var(--navy);margin-bottom:7px;}
+  .remove-ac{border:none;border-radius:8px;background:#FBEAE7;color:#B7352A;padding:5px 10px;font-family:'Heebo',sans-serif;font-weight:700;cursor:pointer;}
+  .add-ac{width:100%;margin-top:10px;border:1.5px dashed var(--navy);border-radius:10px;background:#EEF4FA;color:var(--navy);padding:11px;font-family:'Heebo',sans-serif;font-size:14px;font-weight:800;cursor:pointer;}
   .toggle-group{display:flex;gap:10px;margin-top:6px;}
   .toggle{
     flex:1;text-align:center;padding:11px 0;border-radius:9px;
@@ -428,8 +432,10 @@
 
     <hr class="sep">
 
-    <label for="workDone">מה בוצע (חובה)</label>
-    <textarea id="workDone" placeholder="תאר את הטיפול שבוצע..."></textarea>
+    <label for="workDone">מזגן 1 — מה בוצע (חובה)</label>
+    <textarea id="workDone" placeholder="תאר מה נבדק ומה בוצע במזגן 1..."></textarea>
+    <div id="extraAcList"></div>
+    <button type="button" class="add-ac" id="addAcBtn">＋ הוסף מזגן נוסף</button>
 
     <label>נדרש המשך טיפול?</label>
     <div class="toggle-group" id="followupToggleGroup">
@@ -818,6 +824,50 @@ function escapeHtml(str){
 }
 function escapeAttr(str){ return escapeHtml(str).replace(/"/g,'&quot;'); }
 
+function splitWorkByAc(value){
+  const text = String(value || '').trim();
+  if(!text) return [''];
+  if(!/^מזגן\s+1\s*:/m.test(text)) return [text];
+  return text.split(/\n(?=מזגן\s+\d+\s*:)/).map(function(part){
+    return part.replace(/^מזגן\s+\d+\s*:\s*/, '').trim();
+  }).filter(function(part){ return part !== ''; });
+}
+
+function renderExtraAcFields(values){
+  const list = document.getElementById('extraAcList');
+  list.innerHTML = '';
+  (values || []).forEach(function(value){ addAcField(value); });
+}
+
+function addAcField(value){
+  const list = document.getElementById('extraAcList');
+  const number = list.children.length + 2;
+  const box = document.createElement('div');
+  box.className = 'extra-ac';
+  box.innerHTML = '<div class="extra-ac-head"><span>מזגן ' + number + '</span><button type="button" class="remove-ac">הסר</button></div>' +
+    '<textarea class="extra-ac-work" placeholder="מה נבדק ומה בוצע במזגן ' + number + '..."></textarea>';
+  box.querySelector('textarea').value = value || '';
+  box.querySelector('.remove-ac').addEventListener('click', function(){
+    box.remove();
+    renumberAcFields();
+  });
+  list.appendChild(box);
+}
+
+function renumberAcFields(){
+  document.querySelectorAll('#extraAcList .extra-ac').forEach(function(box,index){
+    const number = index + 2;
+    box.querySelector('.extra-ac-head span').textContent = 'מזגן ' + number;
+    box.querySelector('textarea').placeholder = 'מה נבדק ומה בוצע במזגן ' + number + '...';
+  });
+}
+
+function collectWorkByAc(){
+  const values = [document.getElementById('workDone').value.trim()];
+  document.querySelectorAll('.extra-ac-work').forEach(function(field){ values.push(field.value.trim()); });
+  return values;
+}
+
 function openDetail(id){
   const c = allCalls.find(x => String(x['מזהה']) === String(id));
   if(!c) return;
@@ -845,7 +895,9 @@ function openDetail(id){
 
   renderOwnerGuidance(c['תמונת הכוונה מהבעלים']);
 
-  document.getElementById('workDone').value = c['מה בוצע'] || '';
+  const acValues = splitWorkByAc(c['מה בוצע']);
+  document.getElementById('workDone').value = acValues[0] || '';
+  renderExtraAcFields(acValues.slice(1));
   document.getElementById('techPrice').value = c['מחיר טכנאי'] || '';
   document.getElementById('customerPrice').value = c['מחיר ללקוח'] || '';
   document.getElementById('toldCustomer').checked = c['נאמר ללקוח'] === 'כן';
@@ -1216,14 +1268,21 @@ document.getElementById('closeBtn').addEventListener('click', ()=>{
 });
 overlay.addEventListener('click', (e)=>{ if(e.target === overlay) overlay.classList.remove('show'); });
 
+document.getElementById('addAcBtn').addEventListener('click', function(){
+  addAcField('');
+  const fields = document.querySelectorAll('.extra-ac-work');
+  if(fields.length) fields[fields.length - 1].focus();
+});
+
 document.getElementById('saveBtn').addEventListener('click', async ()=>{
   if(!isConfigured()){ showToast('חבר קודם את הגיליון'); return; }
 
-  const workDoneVal = document.getElementById('workDone').value.trim();
+  const acValues = collectWorkByAc();
+  const workDoneVal = acValues.map(function(value,index){ return 'מזגן ' + (index + 1) + ': ' + value; }).join('\n');
   const techPriceVal = document.getElementById('techPrice').value;
 
-  if(!workDoneVal){
-    showToast('חובה לכתוב מה בוצע בקריאה לפני השמירה');
+  if(acValues.some(function(value){ return !value; })){
+    showToast('חובה לכתוב מה בוצע בכל מזגן לפני השמירה');
     return;
   }
   if(!techPriceVal || Number(techPriceVal) <= 0){
