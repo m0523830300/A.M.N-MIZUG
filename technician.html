@@ -624,9 +624,16 @@ function enterApp(name){
   sessionName.textContent = `מחובר כ${name}`;
   loginScreen.style.display = 'none';
   appScreen.style.display = '';
+  try{
+    const cached = JSON.parse(localStorage.getItem('techCallsCache') || '[]');
+    if(Array.isArray(cached) && cached.length){
+      allCalls = cached.filter(c => normalizeName(c['טכנאי משויך']) === normalizeName(myName));
+      render();
+    }
+  }catch(e){}
   loadCalls(true);
   if(isConfigured()){
-    setInterval(()=> loadCalls(false), 25000);
+    setInterval(()=> loadCalls(false), 60 * 60 * 1000);
   }
 }
 
@@ -702,13 +709,16 @@ function isCompletedStatus(status){
 
 async function loadCalls(showSpinner){
   if(!isConfigured() || !myName) return;
-  if(showSpinner) listEl.innerHTML = `<div class="loading">טוען קריאות...</div>`;
+  if(showSpinner && !allCalls.length) listEl.innerHTML = `<div class="loading">טוען קריאות...</div>`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(()=>controller.abort(), 30000);
   try{
     const separator = API_URL.includes('?') ? '&' : '?';
-    const res = await fetch(`${API_URL}${separator}_=${Date.now()}`, { cache: 'no-store' });
+    const res = await fetch(`${API_URL}${separator}_=${Date.now()}`, { cache: 'no-store', signal: controller.signal });
     const raw = (await res.json()).reverse();
     // מציג רק את הקריאות המשויכות לטכנאי המחובר — אין גישה לקריאות של טכנאים אחרים
     allCalls = raw.filter(c => normalizeName(c['טכנאי משויך']) === normalizeName(myName));
+    localStorage.setItem('techCallsCache', JSON.stringify(allCalls));
 
     const currentIds = new Set(allCalls.map(c => String(c['מזהה'])));
     if(knownIds === null){
@@ -721,7 +731,9 @@ async function loadCalls(showSpinner){
 
     render();
   }catch(err){
-    listEl.innerHTML = `<div class="empty">שגיאה בטעינת הנתונים. בדוק את החיבור לגיליון.</div>`;
+    if(!allCalls.length) listEl.innerHTML = `<div class="empty">השרת עמוס כרגע. לחץ על רענון בעוד דקה.</div>`;
+  }finally{
+    clearTimeout(timeoutId);
   }
 }
 
