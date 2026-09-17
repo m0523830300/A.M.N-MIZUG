@@ -1,7 +1,7 @@
 {
-  "name": "א.מ.ן — מתקינים",
-  "short_name": "א.מ.ן מתקינים",
-  "start_url": "installer-work.html",
+  "name": "א.מ.ן — נוכחות מתקינים",
+  "short_name": "נוכחות א.מ.ן",
+  "start_url": "attendance.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f2f6f9",
