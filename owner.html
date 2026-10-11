@@ -940,7 +940,7 @@ function renderList(calls){
   listEl.querySelectorAll('.delete-btn').forEach(btn=>{
     btn.addEventListener('click', ()=> deleteCall(btn.dataset.id));
   });
-  listEl.querySelectorAll('.edit-btn').forEach(btn=>{
+  listEl.querySelectorAll('.edit-btn:not(.repair-btn)').forEach(btn=>{
     btn.addEventListener('click', ()=> openEditModal(btn.dataset.id));
   });
   listEl.querySelectorAll('.photo-btn').forEach(btn=>{
@@ -961,12 +961,7 @@ async function repairCallIntegrations(btn){
   btn.disabled = true;
   btn.textContent = 'מטפל...';
   try{
-    const res = await fetch(API_URL, {
-      method:'POST',
-      headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body:JSON.stringify({action:'repairCallIntegrations', id:btn.dataset.id})
-    });
-    const result = await res.json();
+    const result = await postApi({action:'repairCallIntegrations', id:btn.dataset.id}, 2);
     if(!result.success) throw new Error(result.error || 'הפעולה נכשלה');
     if(result.smsSuccess){
       showToast(`✓ מסמך ${result.docNumber} מוכן וה-SMS טופל`, 8000);
@@ -1263,6 +1258,41 @@ async function pickPhoneInto(targetId){
 document.getElementById('pickPrimaryPhoneBtn').addEventListener('click', ()=>pickPhoneInto('phone'));
 document.getElementById('pickAdditionalPhoneBtn').addEventListener('click', ()=>pickPhoneInto('orderedByPhone'));
 
+async function readApiJson(response){
+  const text = await response.text();
+  let data;
+  try{
+    data = JSON.parse(text);
+  }catch(err){
+    const isHtml = /^\s*</.test(text);
+    throw new Error(isHtml
+      ? 'השרת החזיר דף שגיאה זמני במקום תשובה רגילה'
+      : 'התקבלה תשובה לא תקינה מהשרת');
+  }
+  if(!response.ok) throw new Error(data.error || `שגיאת שרת ${response.status}`);
+  return data;
+}
+
+async function postApi(payload, retries=0){
+  let lastError;
+  for(let attempt=0; attempt<=retries; attempt++){
+    try{
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: {'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify(payload)
+      });
+      return await readApiJson(response);
+    }catch(err){
+      lastError = err;
+      if(attempt < retries){
+        await new Promise(resolve=>setTimeout(resolve, 700 * (attempt + 1)));
+      }
+    }
+  }
+  throw lastError;
+}
+
 document.getElementById('callForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   if(!isConfigured()){ showToast('חבר קודם את הגיליון'); return; }
@@ -1289,35 +1319,42 @@ document.getElementById('callForm').addEventListener('submit', async (e)=>{
   let callSaved = false;
   let completed = false;
   try{
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: {'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify(payload)
-    });
-    const result = await res.json();
+    const result = await postApi(payload);
     if(!result.success) throw new Error(result.error || 'שמירת הקריאה נכשלה');
     callSaved = true;
-    btn.textContent = 'יוצר מסמך...';
     loadCalls();
 
-    // יצירת המסמך היא חלק מחייב מהפעולה: לא מאפסים את הטופס לפני שקיבלנו אישור.
-    const docRes = await fetch(API_URL, {
-      method: 'POST',
-      headers: {'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({
-        action: 'createCustomerDoc',
-        customerName: payload.customerName,
-        phone: payload.phone,
-        address: payload.address,
-        workType: payload.workType,
-        projectName: payload.projectName,
-        orderedBy: payload.orderedBy,
-        orderedByPhone: payload.orderedByPhone
-      })
-    });
-    const doc = await docRes.json();
-    if(!doc.success){
-      throw new Error('הקריאה נשמרה, אך המסמך לא נוצר: ' + (doc.error || 'שגיאה לא ידועה'));
+    let integration = {success:true, skipped:true, docNumber:'', smsSuccess:true};
+    let integrationError = '';
+
+    if(!result.skippedCall && result.id){
+      // פעולה אחת מזהה את הקריאה שכבר נשמרה, משלימה את המסמך ושולחת SMS.
+      // כך אין יצירה כפולה אם השרת מחזיר לרגע דף שגיאה במקום JSON.
+      btn.textContent = 'משלים מסמך ושולח SMS...';
+      try{
+        integration = await postApi({action:'repairCallIntegrations', id:result.id}, 2);
+        if(!integration.success) throw new Error(integration.error || 'השלמת המסמך נכשלה');
+      }catch(integrationErr){
+        integrationError = integrationErr.message || String(integrationErr);
+      }
+    }else{
+      // בהתקנה לא נוצרת קריאת טכנאי, אך עדיין נדרש מספר מסמך ללקוח.
+      btn.textContent = 'יוצר מסמך...';
+      try{
+        integration = await postApi({
+          action: 'createCustomerDoc',
+          customerName: payload.customerName,
+          phone: payload.phone,
+          address: payload.address,
+          workType: payload.workType,
+          projectName: payload.projectName,
+          orderedBy: payload.orderedBy,
+          orderedByPhone: payload.orderedByPhone
+        });
+        if(!integration.success) throw new Error(integration.error || 'יצירת המסמך נכשלה');
+      }catch(integrationErr){
+        integrationError = integrationErr.message || String(integrationErr);
+      }
     }
 
     let failedUploads = 0;
@@ -1326,27 +1363,6 @@ document.getElementById('callForm').addEventListener('submit', async (e)=>{
         btn.textContent = `מעלה קבצים ${i+1}/${filesToUpload.length}...`;
         try{ await uploadOwnerGuidanceFile(result.id, filesToUpload[i]); }
         catch(uploadErr){ failedUploads++; }
-      }
-    }
-
-    let sms = {success:true, skipped:true};
-    if(!result.skippedCall && payload.assignedTechnician){
-      btn.textContent = 'שולח SMS...';
-      try{
-        const smsRes = await fetch(API_URL, {
-          method:'POST',
-          headers:{'Content-Type':'text/plain;charset=utf-8'},
-          body: JSON.stringify({
-          action:'sendAssignmentSms',
-          technicianName: payload.assignedTechnician,
-          customerName: payload.customerName,
-          address: payload.address,
-            issueType: payload.issueType
-          })
-        });
-        sms = await smsRes.json();
-      }catch(smsErr){
-        sms = {success:false, error:'אין תגובה משירות ה-SMS'};
       }
     }
 
@@ -1360,12 +1376,17 @@ document.getElementById('callForm').addEventListener('submit', async (e)=>{
     document.querySelectorAll('#priorityPills .priority-pill').forEach(b=>b.classList.toggle('active',b.dataset.priority==='רגיל'));
     completed = true;
 
-    const baseMessage = `✓ נשמר. מספר מסמך: ${doc.docNumber}`;
-    if(failedUploads){
+    const docNumber = integration.docNumber || result.docNumber || '';
+    const baseMessage = docNumber
+      ? `✓ הקריאה נשלחה. מספר מסמך: ${docNumber}`
+      : (result.skippedCall ? '✓ הפרטים נשמרו' : `✓ הקריאה נשלחה ל${payload.assignedTechnician || 'טכנאי'}`);
+    if(integrationError){
+      showToast(`${baseMessage}. המסמך או ה-SMS לא הושלמו כרגע — אפשר ללחוץ בכרטיס הקריאה על „השלם מסמך ושלח SMS”. ${integrationError}`, 12000);
+    }else if(failedUploads){
       showToast(`${baseMessage}. ${failedUploads} קבצים לא הועלו — אפשר להוסיף אותם בכרטיס הקריאה`, 10000);
-    }else if(!sms.success){
-      showToast(`${baseMessage}. ה-SMS לא נשלח: ${sms.error || 'שגיאה לא ידועה'}`, 9000);
-    }else if(result.skippedCall || sms.skipped){
+    }else if(integration.smsSuccess === false){
+      showToast(`${baseMessage}. ה-SMS לא נשלח: ${integration.smsError || 'שגיאה לא ידועה'}`, 9000);
+    }else if(result.skippedCall || integration.skipped){
       showToast(`${baseMessage} (לא נדרש SMS)`, 7000);
     }else{
       showToast(`${baseMessage}. נשלח SMS ל${payload.assignedTechnician}`, 7000);
