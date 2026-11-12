@@ -510,12 +510,21 @@
           <span class="home-icon">⚙</span><span class="home-title">ניהול טכנאים</span>
           <span class="home-desc">הוספה ועדכון פרטי טכנאים</span>
         </button>
+        <button type="button" class="home-card" data-open-view="secretary-work">
+          <span class="home-icon">✓</span><span class="home-title">משימות ומעקב מזכירה</span>
+          <span class="home-desc">משימות לבדיקה, הקצאה לרותם והתקדמות הגבייה</span>
+        </button>
         <button type="button" class="home-card" onclick="location.href='installers-admin.html'">
           <span class="home-icon">◷</span><span class="home-title">נוכחות מתקינים</span>
           <span class="home-desc">הוספת מתקינים, טלפונים וקודים אישיים</span>
         </button>
       </div>
     </div>
+  </main>
+
+  <main class="app-view" id="view-secretary-work">
+    <div class="view-back-row"><button type="button" class="view-back-btn" data-open-view="home">חזרה למסך הראשי</button></div>
+    <iframe id="ownerSecretaryFrame" title="משימות ומעקב מזכירה" style="display:block;width:100%;height:78dvh;min-height:420px;border:0"></iframe>
   </main>
 
   <main class="app-view" id="view-new-call">
@@ -1834,6 +1843,7 @@ document.getElementById('collectionFilter').addEventListener('change',renderColl
 
 // ניווט בין מסכי הניהול. אפשר גם לפתוח ישירות, לדוגמה: owner.html?view=collection
 const OWNER_VIEWS = {
+  'secretary-work':'משימות ומעקב מזכירה',
   home: 'מערכת ניהול',
   'new-call': 'פתיחת עבודה חדשה',
   calls: 'עבודות קיימות',
@@ -1844,6 +1854,11 @@ const OWNER_VIEWS = {
 const OWNER_VIEW_LOADED = {};
 
 function loadOwnerViewData(viewName){
+  if(viewName === 'secretary-work'){
+    const frame = document.getElementById('ownerSecretaryFrame');
+    if(!frame.hasAttribute('src')) frame.src = 'secretary.html?mode=owner';
+    else frame.contentWindow.postMessage('refresh-owner-review', window.location.origin);
+  }
   if(viewName === 'new-call' && !OWNER_VIEW_LOADED.technicians){ loadTechnicians(); OWNER_VIEW_LOADED.technicians=true; }
   if(viewName === 'calls' && !OWNER_VIEW_LOADED.calls){
     OWNER_VIEW_LOADED.calls=true;
