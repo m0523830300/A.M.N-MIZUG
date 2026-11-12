@@ -472,6 +472,7 @@
   .collection-login{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:0 20px 14px;display:flex;gap:8px;align-items:center;}
   .collection-login input{margin:0;flex:1;}.collection-login button{background:var(--navy);color:#fff;}
   @media(max-width:650px){.collection-summary{grid-template-columns:1fr}.collection-contact{grid-template-columns:1fr}.collection-head{display:block}.collection-amount{margin-top:6px}}
+.home-collection-progress{margin-block:24px 8px}.home-collection-progress h2{font-size:18px;margin:0 0 10px;color:#153e6f}.home-collection-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.home-collection-metric{padding:12px;border-radius:12px;min-height:82px;font-size:13px;line-height:1.35}.home-collection-metric strong{display:block;font-size:24px;margin-top:6px}.home-collection-metric.total{background:#e9f1fa;color:#153e6f}.home-collection-metric.uncalled{background:#ffe9e7;color:#922821}.home-collection-metric.contacted{background:#fff2d4;color:#735006}#homeCollectionStatus{font-size:13px;color:#516579;margin:8px 0 0}
 </style>
 </head>
 <body>
@@ -511,20 +512,29 @@
           <span class="home-desc">הוספה ועדכון פרטי טכנאים</span>
         </button>
         <button type="button" class="home-card" data-open-view="secretary-work">
-          <span class="home-icon">✓</span><span class="home-title">משימות ומעקב מזכירה</span>
-          <span class="home-desc">משימות לבדיקה, הקצאה לרותם והתקדמות הגבייה</span>
+          <span class="home-icon">✓</span><span class="home-title">משימות המזכירה</span>
+          <span class="home-desc">משימות לבדיקה והקצאה לרותם</span>
         </button>
         <button type="button" class="home-card" onclick="location.href='installers-admin.html'">
           <span class="home-icon">◷</span><span class="home-title">נוכחות מתקינים</span>
           <span class="home-desc">הוספת מתקינים, טלפונים וקודים אישיים</span>
         </button>
       </div>
+      <section class="home-collection-progress" aria-labelledby="homeCollectionHeading">
+        <h2 id="homeCollectionHeading">מעקב גבייה של המזכירה</h2>
+        <div class="home-collection-metrics">
+          <div class="home-collection-metric total"><span>לקוחות עם חוב פתוח</span><strong id="homeDebtTotal">—</strong></div>
+          <div class="home-collection-metric uncalled"><span>ללא סיכום בתיעוד האחרון</span><strong id="homeDebtUncalled">—</strong></div>
+          <div class="home-collection-metric contacted"><span>עם סיכום שיחה ועדיין חייבים</span><strong id="homeDebtContacted">—</strong></div>
+        </div>
+        <p id="homeCollectionStatus" role="status">טוען נתוני גבייה…</p>
+      </section>
     </div>
   </main>
 
   <main class="app-view" id="view-secretary-work">
     <div class="view-back-row"><button type="button" class="view-back-btn" data-open-view="home">חזרה למסך הראשי</button></div>
-    <iframe id="ownerSecretaryFrame" title="משימות ומעקב מזכירה" style="display:block;width:100%;height:78dvh;min-height:420px;border:0"></iframe>
+    <iframe id="ownerSecretaryFrame" title="משימות המזכירה" style="display:block;width:100%;height:78dvh;min-height:420px;border:0"></iframe>
   </main>
 
   <main class="app-view" id="view-new-call">
@@ -1711,27 +1721,66 @@ function collectionMessage(c){
   return `שלום ${c.name}, תזכורת מא.מ.ן מיזוג אוויר: קיימת יתרה לתשלום בסך ${money(c.amount)}. נשמח להסדרת התשלום. תודה.`;
 }
 
-async function loadCollections(){
-  if(!COLLECTION_OWNER_TOKEN){
-    const login = await postCollectionAction({action:'collectionLogin'});
-    if(!login.success){ showToast(login.error || 'טעינת הגבייה נכשלה'); return; }
-    COLLECTION_OWNER_TOKEN = login.token;
-    sessionStorage.setItem('collectionOwnerToken',login.token);
-  }
-  const list = document.getElementById('collectionList');
-  list.innerHTML = `<div class="loading">טוען נתוני גבייה...</div>`;
-  try{
-    const res = await fetch(API_URL + '?action=collections&ownerToken=' + encodeURIComponent(COLLECTION_OWNER_TOKEN), {cache:'no-store'});
-    const result = await res.json();
-    if(!result.success){
-      if(result.error && result.error.includes('כניסת')){ COLLECTION_OWNER_TOKEN=''; sessionStorage.removeItem('collectionOwnerToken'); }
-      throw new Error(result.error || 'שגיאה');
+let collectionRead;
+let homeCollectionLoadedAt = 0;
+const HOME_COLLECTION_REFRESH_MS = 10 * 60 * 1000;
+
+function readOwnerCollections() {
+  if (!collectionRead) collectionRead = requestOwnerCollections().finally(() => { collectionRead = null; });
+  return collectionRead;
+}
+
+async function requestOwnerCollections() {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (!COLLECTION_OWNER_TOKEN) {
+      const login = await postCollectionAction({action:'collectionLogin'});
+      if (!login.success) throw new Error(login.error || 'טעינת הגבייה נכשלה');
+      COLLECTION_OWNER_TOKEN = login.token;
+      sessionStorage.setItem('collectionOwnerToken', login.token);
     }
+    const response = await fetch(API_URL + '?action=collections&ownerToken=' + encodeURIComponent(COLLECTION_OWNER_TOKEN), {cache:'no-store'});
+    const result = await response.json();
+    if (result.success) return result;
+    if (!result.error?.includes('כניסת')) throw new Error(result.error || 'טעינת הגבייה נכשלה');
+    COLLECTION_OWNER_TOKEN = '';
+    sessionStorage.removeItem('collectionOwnerToken');
+  }
+  throw new Error('טעינת הגבייה נכשלה');
+}
+
+function renderHomeCollectionProgress(result) {
+  const customers = result.customers || [];
+  const total = customers.length;
+  const withSummary = customers.filter(c =>
+    ['טלפון','שיחה','שיחת טלפון'].includes(String(c.lastReminderChannel || '').trim()) &&
+    String(c.lastReminderNote || '').trim()).length;
+  const hasReminderNotes = !total || customers.some(c => Object.hasOwn(c, 'lastReminderNote'));
+  document.getElementById('homeDebtTotal').textContent = total;
+  document.getElementById('homeDebtUncalled').textContent = hasReminderNotes ? total - withSummary : '—';
+  document.getElementById('homeDebtContacted').textContent = hasReminderNotes ? withSummary : '—';
+  document.getElementById('homeCollectionStatus').textContent = hasReminderNotes
+    ? 'לפי התיעוד האחרון בדוח הגבייה' : 'סיכומי השיחות אינם זמינים בדוח הגבייה';
+  homeCollectionLoadedAt = Date.now();
+}
+
+async function loadHomeCollectionProgress() {
+  if (homeCollectionLoadedAt && Date.now() - homeCollectionLoadedAt < HOME_COLLECTION_REFRESH_MS) return;
+  try { renderHomeCollectionProgress(await readOwnerCollections()); }
+  catch { document.getElementById('homeCollectionStatus').textContent = homeCollectionLoadedAt
+    ? 'מוצגים הנתונים האחרונים · הרענון נכשל' : 'טעינת נתוני הגבייה נכשלה'; }
+}
+
+async function loadCollections() {
+  const list = document.getElementById('collectionList');
+  list.innerHTML = '<div class="loading">טוען נתוני גבייה...</div>';
+  try {
+    const result = await readOwnerCollections();
     COLLECTIONS = result.customers || [];
+    renderHomeCollectionProgress(result);
     renderCollectionSummary(result.summary || {});
     renderCollections();
-  }catch(err){
-    list.innerHTML = `<div class="empty">לא ניתן לטעון את דוח הגבייה.</div>`;
+  } catch {
+    list.innerHTML = '<div class="empty">לא ניתן לטעון את דוח הגבייה.</div>';
   }
 }
 
@@ -1843,7 +1892,7 @@ document.getElementById('collectionFilter').addEventListener('change',renderColl
 
 // ניווט בין מסכי הניהול. אפשר גם לפתוח ישירות, לדוגמה: owner.html?view=collection
 const OWNER_VIEWS = {
-  'secretary-work':'משימות ומעקב מזכירה',
+  'secretary-work':'משימות המזכירה',
   home: 'מערכת ניהול',
   'new-call': 'פתיחת עבודה חדשה',
   calls: 'עבודות קיימות',
@@ -1854,6 +1903,7 @@ const OWNER_VIEWS = {
 const OWNER_VIEW_LOADED = {};
 
 function loadOwnerViewData(viewName){
+  if(viewName === 'home') loadHomeCollectionProgress();
   if(viewName === 'secretary-work'){
     const frame = document.getElementById('ownerSecretaryFrame');
     if(!frame.hasAttribute('src')) frame.src = 'secretary.html?mode=owner';
@@ -1897,6 +1947,10 @@ window.addEventListener('popstate',()=>{
   openOwnerView(view,false);
 });
 openOwnerView(new URLSearchParams(window.location.search).get('view') || 'home',false);
+
+setInterval(() => {
+  if (!document.hidden && document.getElementById('view-home').classList.contains('active')) loadHomeCollectionProgress();
+}, HOME_COLLECTION_REFRESH_MS);
 
 // רישום ה-Service Worker - נדרש כדי שהדפדפן יאפשר "הוספה למסך הבית" כאפליקציה אמיתית
 if('serviceWorker' in navigator){
